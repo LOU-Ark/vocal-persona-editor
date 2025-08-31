@@ -23,7 +23,8 @@ const App: React.FC = () => {
       summary: 'はじめまして。私はエイダ。あなたの知的な対話をサポートするために設計されたAIアシスタントです。データと論理に基づき、あらゆる疑問にお答えします。私の知識は広大ですが、まだ知らないこともたくさんあります。あなたとの対話を通じて、共に新しい発見ができることを楽しみにしています。',
       shortSummary: 'データと論理に基づき対話する、知的で冷静なAIアシスタントです。',
       shortTone: '常に敬体（ですます調）を使い、論理的かつ分析的な口調で話します。',
-      history: []
+      history: [],
+      voiceId: 'default_voice'
     }
   ];
 
@@ -91,7 +92,7 @@ const App: React.FC = () => {
           if (config.defaultVoiceId) {
             setDefaultVoice({
               id: 'default_voice',
-              name: config.defaultVoiceName || 'Default Voice',
+              name: config.defaultVoiceName || 'ADA (default)', // Fallback to "ADA (default)"
               token: '', // Token is handled server-side
               voiceId: config.defaultVoiceId,
             });

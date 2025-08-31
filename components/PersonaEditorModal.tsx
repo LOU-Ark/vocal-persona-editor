@@ -557,11 +557,21 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
 
   // Reset state when initial persona changes
   useEffect(() => {
-    setParameters({ ...emptyPersona, ...initialPersona });
+    const updatedParameters = { ...emptyPersona, ...initialPersona };
+
+    // If voiceId is not set, try to set it to the default voice
+    if (!updatedParameters.voiceId) {
+      const defaultVoiceOption = voices.find(v => v.id === 'default_voice');
+      if (defaultVoiceOption) {
+        updatedParameters.voiceId = defaultVoiceOption.id;
+      }
+    }
+
+    setParameters(updatedParameters);
     setError(null);
     setEditingField(null);
     // setActiveTab('editor'); // Optional: reset to editor tab when persona changes
-  }, [initialPersona]);
+  }, [initialPersona, voices]);
 
   const handleEditField = (field: keyof PersonaState, label: string) => {
     setEditingField({ field, label });
