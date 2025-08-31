@@ -48,6 +48,14 @@ export default async function handler(req: any, res: any) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    // --- DEBUGGING CODE START ---
+    // Let's log the environment variables that the Vercel function can actually see.
+    console.log("--- VERCEL ENVIRONMENT DEBUG ---");
+    console.log("All available process.env keys:", Object.keys(process.env));
+    console.log("Value of process.env.API_KEY:", process.env.API_KEY ? "SET" : "NOT SET");
+    console.log("--- END VERCEL ENVIRONMENT DEBUG ---");
+    // --- DEBUGGING CODE END ---
+
     // Gracefully handle missing API_KEY inside the handler to prevent a cold-start crash.
     // Check for API_KEY first, with a fallback to GEMINI_API_KEY for robustness.
     const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
@@ -166,8 +174,8 @@ async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit
     const extractionPrompt = `以下のテキストに基づいて、指定されたJSONフォーマットでキャラクターのパラメータを日本語で抽出しなさい。\n\n---\n\n${synthesizedText}`;
     const extractedParams = await generateWithSchema<Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'>>(extractionPrompt, personaSchema);
 
-    // FIX: Removed `sources` from the personaState object to match the type definition.
-    // The `personaState` and `sources` are now returned correctly as separate properties.
+    // FIX: Removed `sources` from the personaState object to match the type definition.
+    // The `personaState` and `sources` are now returned correctly as separate properties.
     return { personaState: extractedParams, sources: sources };
 };
 
@@ -227,7 +235,7 @@ async function generateRefinementWelcomeMessage(personaState: PersonaState): Pro
 
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
   const systemInstruction = 
-`あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです...
+`あなたは、ユーザーがキャラクター（ペルソ-ナ）を作成するのを手伝う、創造的なアシスタントです...
 `;
   const conversationHistory = history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] }));
 
@@ -277,3 +285,4 @@ async function getPersonaChatResponse(personaState: PersonaState, history: ChatM
     const response = await chat.sendMessage({ message: latestMessage });
     return response.text;
 };
+
