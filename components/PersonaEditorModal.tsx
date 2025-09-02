@@ -687,7 +687,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
             </div>
         </header>
         
-        <main className="flex-grow min-h-0">
+        <main className="flex-grow min-h-0 pb-24">
           {error && <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md mb-4 text-sm">{error}</div>}
           
            {/* Mobile Tab View */}
@@ -750,7 +750,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
            </div>
         </main>
         
-        <footer className="flex-shrink-0 flex justify-end p-4 mt-6 border-t border-gray-700">
+        <footer className="sticky bottom-0 z-10 flex-shrink-0 flex justify-end p-4 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700">
             <button onClick={onBack} className="px-4 py-2 text-gray-300 hover:text-white mr-2">Cancel</button>
             <button onClick={handleSave} disabled={isLoading || !parameters.name} className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-md shadow-lg disabled:bg-gray-600 disabled:cursor-not-allowed">
                 <SaveIcon />

@@ -241,7 +241,10 @@ const App: React.FC = () => {
                 <button onClick={handleBackToList} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
                   <BackIcon />
                 </button>
-                <h1 className="text-2xl font-bold text-white">
+                <h1 
+                  className="text-2xl font-bold text-white cursor-pointer hover:text-indigo-400 transition-colors"
+                  onClick={() => editingPersona && handleOpenEditor(editingPersona)}
+                >
                   {activePersonaForHeader?.name || 'Chat'}
                 </h1>
               </div>
