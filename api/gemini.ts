@@ -37,11 +37,52 @@ const mbtiProfileSchema = {
     required: ["type", "typeName", "description", "scores"]
 };
 
-// --- Retry Helper ---
+// --- API Client Management with Fallback ---
+
+const apiClientManager = {
+    clients: [] as GoogleGenAI[],
+    activeClientIndex: 0,
+    initialized: false,
+
+    initialize() {
+        if (this.initialized) return;
+
+        const primaryApiKey = process.env.API_KEY;
+        const fallbackApiKey = process.env.GEMINI_API_KEY;
+
+        if (primaryApiKey) {
+            this.clients.push(new GoogleGenAI({ apiKey: primaryApiKey }));
+        }
+        if (fallbackApiKey && fallbackApiKey !== primaryApiKey) {
+            this.clients.push(new GoogleGenAI({ apiKey: fallbackApiKey }));
+        }
+        
+        this.initialized = true;
+    },
+
+    getActiveClient(): GoogleGenAI {
+        if (this.clients.length === 0) {
+            throw new Error("Server configuration error: No API_KEY or GEMINI_API_KEY environment variable is set.");
+        }
+        return this.clients[this.activeClientIndex];
+    },
+
+    switchToNextClient(): boolean {
+        if (this.activeClientIndex + 1 < this.clients.length) {
+            this.activeClientIndex++;
+            console.log(`Switched to fallback API key (index ${this.activeClientIndex}).`);
+            return true;
+        }
+        return false;
+    }
+};
+
+
+// --- Retry & Fallback Helper ---
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function retryWithExponentialBackoff<T>(
-    fn: () => Promise<T>,
+async function runAiOperationWithFallback<T>(
+    fn: (client: GoogleGenAI) => Promise<T>,
     retries = 3,
     delay = 1000,
     backoffFactor = 2
@@ -50,12 +91,23 @@ async function retryWithExponentialBackoff<T>(
 
     for (let i = 0; i < retries; i++) {
         try {
-            return await fn();
+            const client = apiClientManager.getActiveClient();
+            return await fn(client);
         } catch (error: any) {
             lastError = error;
-            // Check if the error is a GoogleGenerativeAIResponseError and has a status code
-            const status = error?.response?.status;
-            if (status === 503) { // 503 Service Unavailable (Overloaded)
+            const status = error?.status; // Adjusted to check error.status directly for 429
+
+            if (status === 429) { // Quota Exceeded
+                console.warn(`Attempt ${i + 1} failed with status 429 (Quota Exceeded).`);
+                if (apiClientManager.switchToNextClient()) {
+                    console.log("Retrying with fallback key...");
+                    // Immediately retry with the new key, don't increment 'i' or delay
+                    return await runAiOperationWithFallback(fn, retries, delay, backoffFactor);
+                } else {
+                    console.error("All API keys have been exhausted.");
+                    throw error; // No more fallback keys
+                }
+            } else if (error?.response?.status === 503) { // Service Unavailable
                 console.log(`Attempt ${i + 1} failed with status 503. Retrying in ${delay}ms...`);
                 await sleep(delay);
                 delay *= backoffFactor;
@@ -72,41 +124,24 @@ async function retryWithExponentialBackoff<T>(
 
 // --- Main Handler ---
 
-// A single instance of the AI client to be initialized on the first request
-let ai: GoogleGenAI;
-
 export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') {
         res.setHeader('Allow', ['POST']);
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // --- DEBUGGING CODE START ---
-    // Let's log the environment variables that the Vercel function can actually see.
-    console.log("--- VERCEL ENVIRONMENT DEBUG ---");
-    console.log("All available process.env keys:", Object.keys(process.env));
-    console.log("Value of process.env.API_KEY:", process.env.API_KEY ? "SET" : "NOT SET");
-    console.log("--- END VERCEL ENVIRONMENT DEBUG ---");
-    // --- DEBUGGING CODE END ---
-
-    // Gracefully handle missing API_KEY inside the handler to prevent a cold-start crash.
-    // Check for API_KEY first, with a fallback to GEMINI_API_KEY for robustness.
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        const errorMessage = "Server configuration error: API_KEY environment variable is not set.";
-        console.error(errorMessage);
-        return res.status(500).json({ message: errorMessage });
-    }
-    
-    // Initialize the AI client on the first valid request
-    if (!ai) {
-        ai = new GoogleGenAI({ apiKey });
-    }
-
+    // Initialize the API client manager on the first valid request
+    apiClientManager.initialize();
 
     const { action, payload } = req.body;
 
     try {
+        if (apiClientManager.clients.length === 0) {
+            const errorMessage = "Server configuration error: No API_KEY or GEMINI_API_KEY environment variable is set.";
+            console.error(errorMessage);
+            return res.status(500).json({ message: errorMessage });
+        }
+
         let result;
         switch (action) {
             case 'createPersonaFromWeb':
@@ -161,9 +196,9 @@ export default async function handler(req: any, res: any) {
 
 const generateWithSchema = async <T,>(prompt: string, schema: any): Promise<T> => {
     try {
-        const response = await retryWithExponentialBackoff(() => 
-            ai.models.generateContent({
-                model: "gemini-1.5-flash",
+        const response = await runAiOperationWithFallback((client) => 
+            client.models.generateContent({
+                model: "gemini-2.5-flash",
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",
@@ -186,9 +221,9 @@ const generateWithSchema = async <T,>(prompt: string, schema: any): Promise<T> =
 async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'>, sources: WebSource[] }> {
     const searchPrompt = `ウェブで「${topic}」に関する情報を検索してください。その情報を統合し、キャラクタープロファイル作成に適した詳細な説明文を日本語で生成してください。考えられる背景、性格、口調、そして特徴的な経験についての詳細を含めてください。`;
 
-    const searchResponse = await retryWithExponentialBackoff(() =>
-        ai.models.generateContent({
-            model: "gemini-1.5-flash",
+    const searchResponse = await runAiOperationWithFallback((client) =>
+        client.models.generateContent({
+            model: "gemini-2.5-flash",
             contents: searchPrompt,
             config: { tools: [{ googleSearch: {} }] },
         })
@@ -201,93 +236,60 @@ async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit
         .map((chunk: any) => ({
             title: chunk.web?.title || 'Unknown Source',
             uri: chunk.web?.uri || '#',
-        }))
+        })
+        )
         .filter((source: WebSource, index: number, self: WebSource[]) =>
             source.uri !== '#' && self.findIndex(s => s.uri === source.uri) === index
         );
 
     if (!synthesizedText) throw new Error("AI could not find enough information on the topic.");
     
-    const extractionPrompt = `以下のテキストに基づいて、指定されたJSONフォーマットでキャラクターのパラメータを日本語で抽出しなさい。
-
----
-
-${synthesizedText}`;
+    const extractionPrompt = `以下のテキストに基づいて、指定されたJSONフォーマットでキャラクターのパラメータを日本語で抽出しなさい.\n\n---\n\n${synthesizedText}`;
     const extractedParams = await generateWithSchema<Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'>>(extractionPrompt, personaSchema);
 
-    // FIX: Removed `sources` from the personaState object to match the type definition.
-    // The `personaState` and `sources` are now returned correctly as separate properties.
     return { personaState: extractedParams, sources: sources };
 };
 
 async function extractParamsFromDoc(documentText: string): Promise<PersonaState> {
-    const prompt = `以下のテキストから、指定されたJSONフォーマットに従ってキャラクター情報を日本語で抽出しなさい。
-
----
-
-${documentText}`;
+    const prompt = `以下のテキストから、指定されたJSONフォーマットに従ってキャラクター情報を日本語で抽出しなさい.\n\n---\n\n${documentText}`;
     return generateWithSchema<PersonaState>(prompt, personaSchema);
 };
 
 async function updateParamsFromSummary(summaryText: string): Promise<PersonaState> {
-    const prompt = `以下のサマリーテキストに基づいて、指定されたJSONフォーマットの各項目を日本語で更新しなさい。
-
----
-
-${summaryText}`;
+    const prompt = `以下のサマリーテキストに基づいて、指定されたJSONフォーマットの各項目を日本語で更新しなさい.\n\n---\n\n${summaryText}`;
     return generateWithSchema<PersonaState>(prompt, personaSchema);
 };
 
 async function generateSummaryFromParams(params: PersonaState): Promise<string> {
-    const prompt = `以下のJSONデータで定義されたキャラクターについて、そのキャラクターの視点から語られるような、魅力的で物語性のある紹介文を日本語で作成してください。'other'フィールドに補足情報があれば、それも内容に含めてください。文章のみを返してください。
-
----
-
-${JSON.stringify(params, null, 2)}`;
-    const response = await retryWithExponentialBackoff(() => 
-        ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt })
+    const prompt = `以下のJSONデータで定義されたキャラクターについて、そのキャラクターの視点から語られるような、魅力的で物語性のある紹介文を日本語で作成してください。'other'フィールドに補足情報があれば、それも内容に含めてください。文章のみを返してください。\n\n---\n\n${JSON.stringify(params, null, 2)}`;
+    const response = await runAiOperationWithFallback((client) => 
+        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text;
 };
 
 async function generateShortSummary(fullSummary: string): Promise<string> {
     if (!fullSummary.trim()) return "";
-    const prompt = `以下の文章を日本語で約50字に要約してください。:
-
----
-
-${fullSummary}`;
-    const response = await retryWithExponentialBackoff(() => 
-        ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt })
+    const prompt = `以下の文章を日本語で約50字に要約してください。:\n\n---\n\n${fullSummary}`;
+    const response = await runAiOperationWithFallback((client) => 
+        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim();
 };
 
 async function generateShortTone(fullTone: string): Promise<string> {
     if (!fullTone.trim()) return "";
-    const prompt = `以下の口調に関する説明文を、その特徴を捉えつつ日本語で約50字に要約してください。:
-
----
-
-${fullTone}`;
-    const response = await retryWithExponentialBackoff(() => 
-        ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt })
+    const prompt = `以下の口調に関する説明文を、その特徴を捉えつつ日本語で約50字に要約してください。:\n\n---\n\n${fullTone}`;
+    const response = await runAiOperationWithFallback((client) => 
+        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim();
 };
 
 async function generateChangeSummary(oldState: Partial<PersonaState>, newState: Partial<PersonaState>): Promise<string> {
-    const prompt = `以下の二つのキャラクター設定JSONを比較し、古いバージョンから新しいバージョンへの変更点を日本語で簡潔に一言で要約してください。
-
-古いバージョン:
-${JSON.stringify(oldState, null, 2)}
-
-新しいバージョン:
-${JSON.stringify(newState, null, 2)}
-
-要約:`;
-    const response = await retryWithExponentialBackoff(() => 
-        ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt })
+    const prompt = `以下の二つのキャラクター設定JSONを比較し、古いバージョンから新しいバージョンへの変更点を日本語で簡潔に一言で要約してください。\n\n古いバージョン:\n${JSON.stringify(oldState, null, 2)}\n\n新しいバージョン:\n${JSON.stringify(newState, null, 2)}\n\n要約:`;
+    const response = await runAiOperationWithFallback((client) => 
+        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim() || "パラメータが更新されました。";
 };
@@ -300,10 +302,7 @@ async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProf
     delete personaData.shortSummary;
     delete personaData.shortTone;
 
-    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成してください...
-
-キャラクター設定:
-${JSON.stringify(personaData, null, 2)}`;
+    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成してください...\n\nキャラクター設定:\n${JSON.stringify(personaData, null, 2)}`;
     return await generateWithSchema(prompt, mbtiProfileSchema);
 };
 
@@ -312,30 +311,28 @@ async function generateRefinementWelcomeMessage(personaState: PersonaState): Pro
 ---
 ${JSON.stringify({ name: personaState.name, role: personaState.role, tone: personaState.tone, personality: personaState.personality }, null, 2)}
 ---
-これから、あなた自身の詳細設定をユーザーが対話形式で調整します。その開始にあたり、ユーザーに機能説明を兼ねた挨拶をしてください...
-挨拶文は簡潔に、全体で80文字以内にまとめてください。`;
-    const response = await retryWithExponentialBackoff(() => 
-        ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt })
+これから、あなた自身の詳細設定をユーザーが対話形式で調整します。その開始にあたり、ユーザーに機能説明を兼ねた挨拶をしてください...\n挨拶文は簡潔に、全体で80文字以内にまとめてください。`;
+    const response = await runAiOperationWithFallback((client) => 
+        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text;
 };
 
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
   const systemInstruction = 
-`あなたは、ユーザーがキャラクター（ペルソ-ナ）を作成するのを手伝う、創造的なアシスタントです...
-`;
+`あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです...\n`;
   const conversationHistory = history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] }));
 
-  const response = await retryWithExponentialBackoff(() =>
-    ai.models.generateContent({
-        model: "gemini-1.5-flash",
+  const response = await runAiOperationWithFallback((client) =>
+    client.models.generateContent({
+        model: "gemini-2.5-flash",
         contents: conversationHistory,
         config: { systemInstruction, tools: [{ googleSearch: {} }] },
     })
   );
 
   let jsonText = response.text.trim();
-  const markdownMatch = jsonText.match(/```(json)?\s*([\s\S]*?)\s*```/);
+  const markdownMatch = jsonText.match(/```(json)?\\s*([\s\S]*?)\\s*```/);
   if (markdownMatch && markdownMatch[2]) jsonText = markdownMatch[2];
   else {
     const firstBrace = jsonText.indexOf('{');
@@ -355,34 +352,28 @@ async function continuePersonaCreationChat(history: PersonaCreationChatMessage[]
 };
 
 async function translateNameToRomaji(name: string): Promise<string> {
-    const prompt = `Translate the following Japanese name into a single, lowercase, filename-safe romaji string... 
-
-Name: "${name}"
-
-Romaji:`;
-    const response = await retryWithExponentialBackoff(() => 
-        ai.models.generateContent({ model: "gemini-1.5-flash", contents: prompt })
+    const prompt = `Translate the following Japanese name into a single, lowercase, filename-safe romaji string... \n\nName: "${name}"\n\nRomaji:`;
+    const response = await runAiOperationWithFallback((client) => 
+        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
 };
 
 async function getPersonaChatResponse(personaState: PersonaState, history: ChatMessage[]): Promise<string> {
-    const systemInstruction = `You are a character with the following traits. Respond as this character in Japanese.
-- Name: ${personaState.name}
-- Role: ${personaState.role}
-...`;
+    const systemInstruction = `You are a character with the following traits. Respond as this character in Japanese.\n- Name: ${personaState.name}\n- Role: ${personaState.role}\n...`;
     const latestMessage = history[history.length - 1]?.parts[0]?.text;
     if (!latestMessage) throw new Error("No message provided to send.");
     
-    const chat = ai.chats.create({
-        model: 'gemini-1.5-flash',
-        config: { systemInstruction },
-        history: history.slice(0, -1)
-    });
+    const chat = await runAiOperationWithFallback(async (client) => {
+        return client.chats.create({
+            model: 'gemini-2.5-flash',
+            config: { systemInstruction },
+            history: history.slice(0, -1)
+        });
+    });
     
-    const response = await retryWithExponentialBackoff(() => 
+    const response = await runAiOperationWithFallback(() => 
         chat.sendMessage({ message: latestMessage })
     );
     return response.text;
 };
-
