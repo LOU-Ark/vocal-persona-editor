@@ -83,8 +83,8 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function runAiOperationWithFallback<T>(
     fn: (client: GoogleGenAI) => Promise<T>,
-    retries = 3,
-    delay = 1000,
+    retries = 5,
+    delay = 2000,
     backoffFactor = 2
 ): Promise<T> {
     let lastError: any;
@@ -125,72 +125,72 @@ async function runAiOperationWithFallback<T>(
 // --- Main Handler ---
 
 export default async function handler(req: any, res: any) {
-    if (req.method !== 'POST') {
-        res.setHeader('Allow', ['POST']);
-        return res.status(405).json({ error: 'Method Not Allowed' });
-    }
+    if (req.method !== 'POST') {
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
 
     // Initialize the API client manager on the first valid request
     apiClientManager.initialize();
 
-    const { action, payload } = req.body;
+    const { action, payload } = req.body;
 
-    try {
+    try {
         if (apiClientManager.clients.length === 0) {
             const errorMessage = "Server configuration error: No API_KEY or GEMINI_API_KEY environment variable is set.";
             console.error(errorMessage);
             return res.status(500).json({ message: errorMessage });
         }
 
-        let result;
-        switch (action) {
-            case 'createPersonaFromWeb':
-                result = await createPersonaFromWeb(payload.topic);
-                break;
-            case 'extractParamsFromDoc':
-                result = await extractParamsFromDoc(payload.documentText);
-                break;
-            case 'updateParamsFromSummary':
-                result = await updateParamsFromSummary(payload.summaryText);
-                break;
-            case 'generateSummaryFromParams':
-                result = await generateSummaryFromParams(payload.params);
-                break;
-            case 'generateShortSummary':
-                result = await generateShortSummary(payload.fullSummary);
-                break;
-            case 'generateShortTone':
-                result = await generateShortTone(payload.fullTone);
-                break;
-            case 'generateChangeSummary':
-                result = await generateChangeSummary(payload.oldState, payload.newState);
-                break;
-            case 'generateMbtiProfile':
-                result = await generateMbtiProfile(payload.personaState);
-                break;
-            case 'generateRefinementWelcomeMessage':
-                result = await generateRefinementWelcomeMessage(payload.personaState);
-                break;
-            case 'continuePersonaCreationChat':
-                result = await continuePersonaCreationChat(payload.history, payload.currentParams);
-                break;
-            case 'translateNameToRomaji':
-                result = await translateNameToRomaji(payload.name);
-                break;
-            case 'getPersonaChatResponse':
-                result = await getPersonaChatResponse(payload.personaState, payload.history);
-                break;
-            default:
-                return res.status(400).json({ message: `Invalid action: ${action}` });
-        }
-        return res.status(200).json(result);
-    } catch (error) {
-        console.error(`Error processing action "${action}":`, error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown internal error occurred.";
-        return res.status(500).json({ message: errorMessage });
-    }
+        let result;
+        switch (action) {
+            case 'createPersonaFromWeb':
+                result = await createPersonaFromWeb(payload.topic);
+                break;
+            case 'extractParamsFromDoc':
+                result = await extractParamsFromDoc(payload.documentText);
+                break;
+            case 'updateParamsFromSummary':
+                result = await updateParamsFromSummary(payload.summaryText);
+                break;
+            case 'generateSummaryFromParams':
+                result = await generateSummaryFromParams(payload.params);
+                break;
+            case 'generateShortSummary':
+                result = await generateShortSummary(payload.fullSummary);
+                break;
+            case 'generateShortTone':
+                result = await generateShortTone(payload.fullTone);
+                break;
+            case 'generateChangeSummary':
+                result = await generateChangeSummary(payload.oldState, payload.newState);
+                break;
+            case 'generateMbtiProfile':
+                result = await generateMbtiProfile(payload.personaState);
+                break;
+            case 'generateRefinementWelcomeMessage':
+                result = await generateRefinementWelcomeMessage(payload.personaState);
+                break;
+            case 'continuePersonaCreationChat':
+                result = await continuePersonaCreationChat(payload.history, payload.currentParams);
+                break;
+            case 'translateNameToRomaji':
+                result = await translateNameToRomaji(payload.name);
+                break;
+            case 'getPersonaChatResponse':
+                result = await getPersonaChatResponse(payload.personaState, payload.history);
+                break;
+            default:
+                return res.status(400).json({ message: `Invalid action: ${action}` });
+        }
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error(`Error processing action "${action}":`, error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown internal error occurred.";
+        const status = (error as any)?.status || 500; // APIエラーのステータスコードを取得
+        return res.status(status).json({ message: errorMessage });
+    }
 }
-
 
 // --- Helper Functions (Moved from geminiService) ---
 

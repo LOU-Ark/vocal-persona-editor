@@ -1,5 +1,3 @@
-
-
 import React, { useState, useCallback, ChangeEvent, useEffect, useMemo, useRef } from 'react';
 import { Persona, PersonaState, PersonaHistoryEntry, ChatMessage, PersonaCreationChatMessage, MbtiProfile, Voice } from '../types';
 import * as geminiService from '../services/geminiService';
@@ -8,6 +6,20 @@ import * as geminiService from '../services/geminiService';
 import { MagicWandIcon, TextIcon, SaveIcon, CloseIcon, HistoryIcon, SendIcon, UndoIcon, UploadIcon, SearchIcon, SparklesIcon, BrainIcon, EditIcon, BackIcon } from './icons';
 import { Loader } from './Loader';
 import { RadarChart } from './RadarChart';
+
+// AIからのエラーメッセージをユーザー向けのメッセージに変換するヘルパー関数
+const getErrorMessage = (error: any) => {
+    if (error.message?.includes("The model is overloaded")) {
+        return "AIモデルが混み合っています。しばらくしてから再度お試しください。";
+    }
+    if (error.message?.includes("Quota Exceeded")) {
+        return "APIの利用上限に達しました。別のAPIキーを設定するか、明日以降に再度お試しください。";
+    }
+    if (error.message?.includes("No API_KEY")) {
+        return "APIキーが設定されていません。プロジェクトの.envファイルを確認してください。";
+    }
+    return error.message || "予期せぬエラーが発生しました。";
+}
 
 interface CreatePersonaModalProps {
   isOpen: boolean;
@@ -620,37 +632,37 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
   };
   
   const handleAnalyzeMbti = async () => {
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage("AI is analyzing personality...");
-    try {
-        const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
-        setParameters(prev => ({ ...prev, mbtiProfile }));
-    } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to analyze MBTI profile.");
-    } finally {
-        setIsLoading(false);
-    }
+      setError(null);
+      setIsLoading(true);
+      setLoadingMessage("AIが性格を分析しています...");
+      try {
+          const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
+          setParameters(prev => ({ ...prev, mbtiProfile }));
+      } catch (err) {
+          setError(getErrorMessage(err instanceof Error ? err : "Failed to analyze MBTI profile."));
+      } finally {
+          setIsLoading(false);
+      }
   };
 
   const handleRegenerateFromTopic = useCallback(async (topic: string) => {
-    if (!topic.trim()) {
-        setError("Please enter a topic.");
-        return;
-    }
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage("AI is searching the web...");
-    try {
-        const { personaState, sources } = await geminiService.createPersonaFromWeb(topic);
-        setLoadingMessage("AI is generating a summary...");
-        const summary = await geminiService.generateSummaryFromParams({ ...parameters, ...personaState, name: personaState.name || parameters.name });
-        setParameters(prev => ({ ...prev, ...personaState, summary, sources }));
-    } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to generate persona from topic.");
-    } finally {
-        setIsLoading(false);
-    }
+      if (!topic.trim()) {
+          setError("トピックを入力してください。");
+          return;
+      }
+      setError(null);
+      setIsLoading(true);
+      setLoadingMessage("AIがウェブを検索しています...");
+      try {
+          const { personaState, sources } = await geminiService.createPersonaFromWeb(topic);
+          setLoadingMessage("AIがサマリーを生成しています...");
+          const summary = await geminiService.generateSummaryFromParams({ ...parameters, ...personaState, name: personaState.name || parameters.name });
+          setParameters(prev => ({ ...prev, ...personaState, summary, sources }));
+      } catch (err) {
+          setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred."));
+      } finally {
+          setIsLoading(false);
+      }
   }, [parameters]);
   
   const handleSave = async () => {
