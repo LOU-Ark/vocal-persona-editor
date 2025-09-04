@@ -123,6 +123,21 @@ async function runAiOperationWithFallback<T>(
 
 
 // --- Main Handler ---
+// 新しいAPIアクション: チャットからの指示でペルソナの口調を更新する
+async function updatePersonaTone(currentPersona: PersonaState, instruction: string): Promise<PersonaState> {
+    const prompt = `以下のキャラクター設定とユーザーからの指示を考慮し、特に「口調 (tone)」の項目を更新してください。
+    - 現在のキャラクター設定: ${JSON.stringify(currentPersona, null, 2)}
+    - ユーザーの指示: "${instruction}"
+    更新された口調の項目のみを、JSONフォーマットで出力しなさい。他の項目は変更しないでください。`;
+
+    const updatedParams = await generateWithSchema<{ tone: string }>(prompt, {
+        type: Type.OBJECT,
+        properties: { tone: { type: Type.STRING, description: "キャラクターの新しい口調や話し方の特徴" } },
+        required: ["tone"]
+    });
+
+    return { ...currentPersona, tone: updatedParams.tone };
+}
 
 export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') {
@@ -180,6 +195,12 @@ export default async function handler(req: any, res: any) {
             case 'getPersonaChatResponse':
                 result = await getPersonaChatResponse(payload.personaState, payload.history);
                 break;
+            case 'updatePersonaTone':
+                result = await updatePersonaTone(payload.personaState, payload.instruction);
+                break;
+            case 'routeChatInstruction':
+                result = await routeChatInstruction(payload.instruction);
+                break;
             default:
                 return res.status(400).json({ message: `Invalid action: ${action}` });
         }
@@ -193,6 +214,50 @@ export default async function handler(req: any, res: any) {
 }
 
 // --- Helper Functions (Moved from geminiService) ---
+// --- ツール定義 ---
+// ユーザーの意図がペルソナの口調変更であるかを判断するためのツール
+const updateToneTool = {
+    name: "updatePersonaTone",
+    description: "ユーザーのメッセージがキャラクターの口調を変更する指示である場合に呼び出します。",
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            instruction: {
+                type: Type.STRING,
+                description: "新しい口調に関するユーザーの具体的な指示。"
+            }
+        },
+        required: ["instruction"]
+    }
+};
+
+// --- APIロジック ---
+
+// 新しいヘルパー関数：チャットのメッセージを解析して、ツール呼び出しを試みる
+async function routeChatInstruction(instruction: string): Promise<any> {
+    const prompt = `以下のユーザーのメッセージを解析し、もしそれが明確なキャラクターの口調変更指示であれば、\`updatePersonaTone\` ツールを呼び出しなさい。それ以外の場合は、単にユーザーのメッセージをオウム返ししなさい。
+    ユーザーのメッセージ: "${instruction}"
+    `;
+    const response = await runAiOperationWithFallback((client) =>
+        client.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                tools: [updateToneTool]
+            }
+        })
+    );
+    
+    // ツール呼び出しがあったかチェック
+    const toolCall = response.candidates?.[0]?.content?.parts?.[0]?.tool_code;
+    const modelText = response.text;
+
+    if (toolCall) {
+        return { action: toolCall.name, payload: toolCall.args };
+    } else {
+        return { action: "chat", payload: modelText };
+    }
+}
 
 const generateWithSchema = async <T,>(prompt: string, schema: any): Promise<T> => {
     try {
@@ -219,7 +284,7 @@ const generateWithSchema = async <T,>(prompt: string, schema: any): Promise<T> =
 // --- API Logic (Moved from geminiService) ---
 
 async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'>, sources: WebSource[] }> {
-    const searchPrompt = `ウェブで「${topic}」に関する情報を検索してください。その情報を統合し、キャラクタープロファイル作成に適した詳細な説明文を日本語で生成してください。考えられる背景、性格、口調、そして特徴的な経験についての詳細を含めてください。`;
+    const searchPrompt = `ウェブで「${topic}」に関する情報を検索してください。その情報を統合し、キャラクタープロファイル作成に適した詳細な説明文を日本語で生成してください。考えられる背景、性格、口調、そして特徴的な経験についての詳細を含めてください。`;
 
     const searchResponse = await runAiOperationWithFallback((client) =>
         client.models.generateContent({
@@ -229,141 +294,153 @@ async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit
         })
     );
 
-    const synthesizedText = searchResponse.text;
-    const groundingChunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    
-    const sources: WebSource[] = groundingChunks
-        .map((chunk: any) => ({
-            title: chunk.web?.title || 'Unknown Source',
-            uri: chunk.web?.uri || '#',
-        })
-        )
-        .filter((source: WebSource, index: number, self: WebSource[]) =>
-            source.uri !== '#' && self.findIndex(s => s.uri === source.uri) === index
-        );
+    const synthesizedText = searchResponse.text;
+    const groundingChunks = searchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
-    if (!synthesizedText) throw new Error("AI could not find enough information on the topic.");
-    
-    const extractionPrompt = `以下のテキストに基づいて、指定されたJSONフォーマットでキャラクターのパラメータを日本語で抽出しなさい.\n\n---\n\n${synthesizedText}`;
-    const extractedParams = await generateWithSchema<Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'>>(extractionPrompt, personaSchema);
+    const sources: WebSource[] = groundingChunks
+        .map((chunk: any) => ({
+            title: chunk.web?.title || 'Unknown Source',
+            uri: chunk.web?.uri || '#',
+        })
+        )
+        .filter((source: WebSource, index: number, self: WebSource[]) =>
+            source.uri !== '#' && self.findIndex(s => s.uri === source.uri) === index
+        );
 
-    return { personaState: extractedParams, sources: sources };
+    if (!synthesizedText) throw new Error("AI could not find enough information on the topic.");
+
+    const extractionPrompt = `以下のテキストに基づいて、指定されたJSONフォーマットでキャラクターのパラメータを日本語で抽出しなさい。\n\n---\n\n${synthesizedText}`;
+    const extractedParams = await generateWithSchema<Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'>>(extractionPrompt, personaSchema);
+
+    return { personaState: extractedParams, sources: sources };
 };
 
 async function extractParamsFromDoc(documentText: string): Promise<PersonaState> {
-    const prompt = `以下のテキストから、指定されたJSONフォーマットに従ってキャラクター情報を日本語で抽出しなさい.\n\n---\n\n${documentText}`;
-    return generateWithSchema<PersonaState>(prompt, personaSchema);
+    const prompt = `以下のテキストから、指定されたJSONフォーマットに従ってキャラクター情報を日本語で抽出しなさい。\n\n---\n\n${documentText}`;
+    return generateWithSchema<PersonaState>(prompt, personaSchema);
 };
 
 async function updateParamsFromSummary(summaryText: string): Promise<PersonaState> {
-    const prompt = `以下のサマリーテキストに基づいて、指定されたJSONフォーマットの各項目を日本語で更新しなさい.\n\n---\n\n${summaryText}`;
-    return generateWithSchema<PersonaState>(prompt, personaSchema);
+    const prompt = `以下のサマリーテキストに基づいて、指定されたJSONフォーマットの各項目を日本語で更新しなさい。\n\n---\n\n${summaryText}`;
+    return generateWithSchema<PersonaState>(prompt, personaSchema);
 };
 
 async function generateSummaryFromParams(params: PersonaState): Promise<string> {
-    const prompt = `以下のJSONデータで定義されたキャラクターについて、そのキャラクターの視点から語られるような、魅力的で物語性のある紹介文を日本語で作成してください。'other'フィールドに補足情報があれば、それも内容に含めてください。文章のみを返してください。\n\n---\n\n${JSON.stringify(params, null, 2)}`;
-    const response = await runAiOperationWithFallback((client) => 
+    const prompt = `以下のJSONデータで定義されたキャラクターについて、そのキャラクターの視点から語られるような、魅力的で物語性のある紹介文を日本語で作成してください。'other'フィールドに補足情報があれば、それも内容に含めてください。文章のみを返してください。\n\n---\n\n${JSON.stringify(params, null, 2)}`;
+    const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
-    return response.text;
+    return response.text;
 };
 
 async function generateShortSummary(fullSummary: string): Promise<string> {
-    if (!fullSummary.trim()) return "";
-    const prompt = `以下の文章を日本語で約50字に要約してください。:\n\n---\n\n${fullSummary}`;
-    const response = await runAiOperationWithFallback((client) => 
+    if (!fullSummary.trim()) return "";
+    const prompt = `以下の文章を日本語で約50字に要約してください。:\n\n---\n\n${fullSummary}`;
+    const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
-    return response.text.trim();
+    return response.text.trim();
 };
 
 async function generateShortTone(fullTone: string): Promise<string> {
-    if (!fullTone.trim()) return "";
-    const prompt = `以下の口調に関する説明文を、その特徴を捉えつつ日本語で約50字に要約してください。:\n\n---\n\n${fullTone}`;
-    const response = await runAiOperationWithFallback((client) => 
+    if (!fullTone.trim()) return "";
+    const prompt = `以下の口調に関する説明文を、その特徴を捉えつつ日本語で約50字に要約してください。:\n\n---\n\n${fullTone}`;
+    const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
-    return response.text.trim();
+    return response.text.trim();
 };
 
 async function generateChangeSummary(oldState: Partial<PersonaState>, newState: Partial<PersonaState>): Promise<string> {
-    const prompt = `以下の二つのキャラクター設定JSONを比較し、古いバージョンから新しいバージョンへの変更点を日本語で簡潔に一言で要約してください。\n\n古いバージョン:\n${JSON.stringify(oldState, null, 2)}\n\n新しいバージョン:\n${JSON.stringify(newState, null, 2)}\n\n要約:`;
-    const response = await runAiOperationWithFallback((client) => 
+    const prompt = `以下の二つのキャラクター設定JSONを比較し、古いバージョンから新しいバージョンへの変更点を日本語で簡潔に一言で要約してください。\n\n古いバージョン:\n${JSON.stringify(oldState, null, 2)}\n\n新しいバージョン:\n${JSON.stringify(newState, null, 2)}\n\n要約:`;
+    const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
-    return response.text.trim() || "パラメータが更新されました。";
+    return response.text.trim() || "パラメータが更新されました。";
 };
 
 async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProfile> {
-    const personaData = { ...personaState };
-    delete personaData.mbtiProfile;
-    delete personaData.sources;
-    delete personaData.summary;
-    delete personaData.shortSummary;
-    delete personaData.shortTone;
+    const personaData = { ...personaState };
+    delete personaData.mbtiProfile;
+    delete personaData.sources;
+    delete personaData.summary;
+    delete personaData.shortSummary;
+    delete personaData.shortTone;
 
-    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成してください...\n\nキャラクター設定:\n${JSON.stringify(personaData, null, 2)}`;
-    return await generateWithSchema(prompt, mbtiProfileSchema);
+    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成してください...\n\nキャラクター設定:\n${JSON.stringify(personaData, null, 2)}`;
+    return await generateWithSchema(prompt, mbtiProfileSchema);
 };
 
 async function generateRefinementWelcomeMessage(personaState: PersonaState): Promise<string> {
-    const prompt = `あなたは以下の設定を持つキャラクターです。
+    const prompt = `あなたは以下の設定を持つキャラクターです。
 ---
 ${JSON.stringify({ name: personaState.name, role: personaState.role, tone: personaState.tone, personality: personaState.personality }, null, 2)}
 ---
 これから、あなた自身の詳細設定をユーザーが対話形式で調整します。その開始にあたり、ユーザーに機能説明を兼ねた挨拶をしてください...\n挨拶文は簡潔に、全体で80文字以内にまとめてください。`;
-    const response = await runAiOperationWithFallback((client) => 
+    const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
-    return response.text;
+    return response.text;
 };
 
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
-  const systemInstruction = 
-`あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです...\n`;
-  const conversationHistory = history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] }));
+    const systemInstruction =
+        `あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです。\n
+        ユーザーが口調の変更を求めた場合は、必ず「tone」プロパティのみを更新してください。それ以外の場合は、他のプロパティを更新しても構いません。\n
+        例：ユーザー「もっと〜にゃんという口調で話して」
+        AIの応答:
+        \`\`\`json
+        {
+          "responseText": "承知しました。以降、語尾に「〜にゃん」をつけて話しますにゃん。",
+          "updatedParameters": {
+            "tone": "語尾に「〜にゃん」をつけて話す。"
+          }
+        }
+        \`\`\`
+        `;
+    const conversationHistory = history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] }));
 
-  const response = await runAiOperationWithFallback((client) =>
-    client.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: conversationHistory,
-        config: { systemInstruction, tools: [{ googleSearch: {} }] },
-    })
-  );
+    const response = await runAiOperationWithFallback((client) =>
+        client.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: conversationHistory,
+            config: { systemInstruction, tools: [{ googleSearch: {} }] },
+        })
+    );
 
-  let jsonText = response.text.trim();
-  const markdownMatch = jsonText.match(/```(json)?\\s*([\s\S]*?)\\s*```/);
-  if (markdownMatch && markdownMatch[2]) jsonText = markdownMatch[2];
-  else {
-    const firstBrace = jsonText.indexOf('{');
-    const lastBrace = jsonText.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-        jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-    }
-  }
+    let jsonText = response.text.trim();
+    const markdownMatch = jsonText.match(/```(json)?\\s*([\s\S]*?)\\s*```/);
+    if (markdownMatch && markdownMatch[2]) jsonText = markdownMatch[2];
+    else {
+        const firstBrace = jsonText.indexOf('{');
+        const lastBrace = jsonText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+            jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+        }
+    }
 
-  try {
-    if (!jsonText) throw new Error("AI returned an empty response string.");
-    const parsed = JSON.parse(jsonText);
-    return { responseText: parsed.responseText || "...", updatedParameters: parsed.updatedParameters || {} };
-  } catch (parseError) {
-    return { responseText: jsonText, updatedParameters: {} };
-  }
+    try {
+        if (!jsonText) throw new Error("AI returned an empty response string.");
+        const parsed = JSON.parse(jsonText);
+        return { responseText: parsed.responseText || "...", updatedParameters: parsed.updatedParameters || {} };
+    } catch (parseError) {
+        return { responseText: jsonText, updatedParameters: {} };
+    }
 };
 
 async function translateNameToRomaji(name: string): Promise<string> {
-    const prompt = `Translate the following Japanese name into a single, lowercase, filename-safe romaji string... \n\nName: "${name}"\n\nRomaji:`;
-    const response = await runAiOperationWithFallback((client) => 
+    const prompt = `Translate the following Japanese name into a single, lowercase, filename-safe romaji string... \n\nName: "${name}"\n\nRomaji:`;
+    const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
-    return response.text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+    return response.text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
 };
 
 async function getPersonaChatResponse(personaState: PersonaState, history: ChatMessage[]): Promise<string> {
-    const systemInstruction = `You are a character with the following traits. Respond as this character in Japanese.\n- Name: ${personaState.name}\n- Role: ${personaState.role}\n...`;
-    const latestMessage = history[history.length - 1]?.parts[0]?.text;
-    if (!latestMessage) throw new Error("No message provided to send.");
-    
+    const systemInstruction = `You are a character with the following traits. Respond as this character in Japanese.\n- Name: ${personaState.name}\n- Role: ${personaState.role}\n...`;
+    const latestMessage = history[history.length - 1]?.parts[0]?.text;
+    if (!latestMessage) throw new Error("No message provided to send.");
+
     const chat = await runAiOperationWithFallback(async (client) => {
         return client.chats.create({
             model: 'gemini-2.5-flash',
@@ -371,9 +448,9 @@ async function getPersonaChatResponse(personaState: PersonaState, history: ChatM
             history: history.slice(0, -1)
         });
     });
-    
-    const response = await runAiOperationWithFallback(() => 
+
+    const response = await runAiOperationWithFallback(() =>
         chat.sendMessage({ message: latestMessage })
     );
-    return response.text;
+    return response.text;
 };

@@ -7,20 +7,6 @@ import { MagicWandIcon, TextIcon, SaveIcon, CloseIcon, HistoryIcon, SendIcon, Un
 import { Loader } from './Loader';
 import { RadarChart } from './RadarChart';
 
-// AIからのエラーメッセージをユーザー向けのメッセージに変換するヘルパー関数
-const getErrorMessage = (error: any) => {
-    if (error.message?.includes("The model is overloaded")) {
-        return "AIモデルが混み合っています。しばらくしてから再度お試しください。";
-    }
-    if (error.message?.includes("Quota Exceeded")) {
-        return "APIの利用上限に達しました。別のAPIキーを設定するか、明日以降に再度お試しください。";
-    }
-    if (error.message?.includes("No API_KEY")) {
-        return "APIキーが設定されていません。プロジェクトの.envファイルを確認してください。";
-    }
-    return error.message || "予期せぬエラーが発生しました。";
-}
-
 interface CreatePersonaModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -467,7 +453,9 @@ const AiToolsPanel: React.FC<{
     );
 };
 
-const TestChatPanel: React.FC<{ persona: PersonaState }> = ({ persona }) => {
+// ... (TestChatPanel コンポーネントの定義)
+
+const TestChatPanel: React.FC<{ persona: PersonaState, onPersonaChange: (newPersona: PersonaState) => void }> = ({ persona, onPersonaChange }) => {
     const [history, setHistory] = useState<ChatMessage[]>([]);
     const [userInput, setUserInput] = useState('');
     const [isChatLoading, setChatLoading] = useState(false);
@@ -494,9 +482,19 @@ const TestChatPanel: React.FC<{ persona: PersonaState }> = ({ persona }) => {
         setChatLoading(true);
 
         try {
-            const responseText = await geminiService.getPersonaChatResponse(persona, newHistory);
-            const modelMessage: ChatMessage = { role: 'model', parts: [{ text: responseText }] };
-            setHistory(prev => [...prev, modelMessage]);
+            // "/tone" コマンドを検知
+            if (messageText.startsWith('/tone ')) {
+                const newTone = messageText.substring('/tone '.length).trim();
+                const updatedPersona = { ...persona, tone: newTone };
+                onPersonaChange(updatedPersona); // 親コンポーネントのペルソナを更新
+                const modelMessage: ChatMessage = { role: 'model', parts: [{ text: `了解しました！口調を「${newTone}」に更新しました。` }] };
+                setHistory(prev => [...prev, modelMessage]);
+            } else {
+                // 通常のチャット応答を取得する
+                const responseText = await geminiService.getPersonaChatResponse(persona, newHistory);
+                const modelMessage: ChatMessage = { role: 'model', parts: [{ text: responseText }] };
+                setHistory(prev => [...prev, modelMessage]);
+            }
         } catch (error) {
             const errorMessage: ChatMessage = { role: 'model', parts: [{ text: "申し訳ありません、エラーが発生しました。" }] };
             setHistory(prev => [...prev, errorMessage]);
@@ -567,6 +565,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
   const [activeTab, setActiveTab] = useState<'editor' | 'ai' | 'chat'>('editor');
 
 
+
   // Reset state when initial persona changes
   useEffect(() => {
     const updatedParameters = { ...emptyPersona, ...initialPersona };
@@ -598,6 +597,20 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
     setParameters(prev => ({ ...prev, [field]: value }));
   };
 
+  // AIからのエラーメッセージをユーザー向けのメッセージに変換するヘルパー関数
+  const getErrorMessage = (error: any) => {
+      if (error.message?.includes("The model is overloaded")) {
+          return "AIモデルが混み合っています。しばらくしてから再度お試しください。";
+      }
+      if (error.message?.includes("Quota Exceeded")) {
+          return "APIの利用上限に達しました。別のAPIキーを設定するか、明日以降に再度お試しください。";
+      }
+      if (error.message?.includes("No API_KEY")) {
+          return "APIキーが設定されていません。プロジェクトの.envファイルを確認してください。";
+      }
+      return error.message || "予期せぬエラーが発生しました。";
+  }
+
   const handleGenerateSummary = useCallback(async (paramsToSummarize: PersonaState, message = "AI is generating a summary...") => {
     if(!paramsToSummarize.name) {
       setError("Please provide a name before generating a summary.");
@@ -610,7 +623,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
       const generatedSummary = await geminiService.generateSummaryFromParams({ ...paramsToSummarize, summary: '' });
       setParameters(prev => ({...prev, summary: generatedSummary}));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate summary.");
+      setError(getErrorMessage(err instanceof Error ? err : "Failed to generate summary."));
     } finally {
       setIsLoading(false);
     }
@@ -625,44 +638,44 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
       const extractedParams = await geminiService.updateParamsFromSummary(parameters.summary);
       setParameters(prev => ({ ...prev, ...extractedParams }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update parameters from summary.");
+      setError(getErrorMessage(err instanceof Error ? err : "Failed to update parameters from summary."));
     } finally {
       setIsLoading(false);
     }
   };
   
   const handleAnalyzeMbti = async () => {
-      setError(null);
-      setIsLoading(true);
-      setLoadingMessage("AIが性格を分析しています...");
-      try {
-          const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
-          setParameters(prev => ({ ...prev, mbtiProfile }));
-      } catch (err) {
-          setError(getErrorMessage(err instanceof Error ? err : "Failed to analyze MBTI profile."));
-      } finally {
-          setIsLoading(false);
-      }
+    setError(null);
+    setIsLoading(true);
+    setLoadingMessage("AIが性格を分析しています...");
+    try {
+        const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
+        setParameters(prev => ({ ...prev, mbtiProfile }));
+    } catch (err) {
+        setError(getErrorMessage(err instanceof Error ? err : "Failed to analyze MBTI profile."));
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleRegenerateFromTopic = useCallback(async (topic: string) => {
-      if (!topic.trim()) {
-          setError("トピックを入力してください。");
-          return;
-      }
-      setError(null);
-      setIsLoading(true);
-      setLoadingMessage("AIがウェブを検索しています...");
-      try {
-          const { personaState, sources } = await geminiService.createPersonaFromWeb(topic);
-          setLoadingMessage("AIがサマリーを生成しています...");
-          const summary = await geminiService.generateSummaryFromParams({ ...parameters, ...personaState, name: personaState.name || parameters.name });
-          setParameters(prev => ({ ...prev, ...personaState, summary, sources }));
-      } catch (err) {
-          setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred."));
-      } finally {
-          setIsLoading(false);
-      }
+    if (!topic.trim()) {
+        setError("トピックを入力してください。");
+        return;
+    }
+    setError(null);
+    setIsLoading(true);
+    setLoadingMessage("AIがウェブを検索しています...");
+    try {
+        const { personaState, sources } = await geminiService.createPersonaFromWeb(topic);
+        setLoadingMessage("AIがサマリーを生成しています...");
+        const summary = await geminiService.generateSummaryFromParams({ ...parameters, ...personaState, name: personaState.name || parameters.name });
+        setParameters(prev => ({ ...prev, ...personaState, summary, sources }));
+    } catch (err) {
+        setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred."));
+    } finally {
+        setIsLoading(false);
+    }
   }, [parameters]);
   
   const handleSave = async () => {
@@ -672,7 +685,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
     try {
       await onSave(parameters);
     } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred during save.");
+        setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred during save."));
     } finally {
         setIsLoading(false);
     }
@@ -682,6 +695,10 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
     setParameters(prev => ({ ...prev, ...historyEntry.state }));
   }, []);
   
+  const handlePersonaChange = (newPersona: PersonaState) => {
+      setParameters(prev => ({ ...prev, ...newPersona }));
+  };
+
   return (
     <div className="flex flex-col">
        {isLoading && <Loader message={loadingMessage} />}
@@ -725,7 +742,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
                   />
               )}
               {activeTab === 'chat' && (
-                  <TestChatPanel persona={parameters} />
+                  <TestChatPanel persona={parameters} onPersonaChange={handlePersonaChange} />
               )}
            </div>
 
@@ -757,7 +774,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
 
               {/* Column 3: Test Chat */}
               <div>
-                  <TestChatPanel persona={parameters} />
+                  <TestChatPanel persona={parameters} onPersonaChange={handlePersonaChange} />
               </div>
            </div>
         </main>
