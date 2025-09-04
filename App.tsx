@@ -267,13 +267,11 @@ const App: React.FC = () => {
                 </h1>
               </div>
             ) : null}
-            {/* ヘルプチャットボタンを追加 */}
-            {activeView === 'list' && (
-              <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors flex items-center gap-2">
-                <ChatBubbleIcon />
-                <span className="hidden md:inline">使い方ガイド</span>
-              </button>
-            )}
+            {/* ヘルプチャットボタンをどの画面でも表示するように修正 */}
+            <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors flex items-center gap-2">
+              <ChatBubbleIcon />
+              <span className="hidden md:inline">使い方ガイド</span>
+            </button>
           </div>
         </header>
 

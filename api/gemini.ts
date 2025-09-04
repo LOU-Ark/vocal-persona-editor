@@ -241,9 +241,17 @@ ${JSON.stringify({ name: personaState.name, role: personaState.role, tone: perso
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
     const systemInstruction =
         `あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです。
-        ユーザーの指示内容を注意深く分析し、最も関連するペルソナパラメータ（name, role, tone, personality, worldview, experience, otherのいずれか）を更新してください。
+        
+        現在のペルソナ設定は以下の通りです。この設定を完全に理解した上で、ユーザーからの新しい指示を統合してください。
+        ---
+        ${JSON.stringify(currentParams, null, 2)}
+        ---
+        
+        ユーザーの指示内容を注意深く分析し、最も関連するペルソナパラメータ（name, role, tone, personality, worldview, experience, otherのいずれか）を、既存の設定と自然に融合するように更新してください。
+        
         応答は常にJSON形式で、responseTextとupdatedParametersの2つのキーを含める必要があります。
         updatedParametersには更新するパラメータを含め、変更内容がない場合は空のオブジェクトを返してください。
+        
         例: ユーザーが「名前を『山田太郎』にして、冷静な性格にして」と指示した場合:
         \`\`\`json
         {
@@ -254,6 +262,17 @@ async function continuePersonaCreationChat(history: PersonaCreationChatMessage[]
             }
         }
         \`\`\`
+        
+        例: ユーザーが「口調にお嬢様言葉を追加して」と指示した場合、既存の口調を維持しつつ、自然に統合してください。
+        \`\`\`json
+        {
+            "responseText": "承知いたしました。わたくしの口調をより優雅なものに調整いたしますわ。",
+            "updatedParameters": {
+                "tone": "丁寧な言葉遣いを基本とし、語尾に「〜ですわ」「〜ですの」といった言葉を自然に加える。時折、好奇心や驚きを優雅な言葉で表現する。"
+            }
+        }
+        \`\`\`
+        
         変更の必要がない場合、responseTextのみを返してください。
         例: ユーザーが「おはよう」と挨拶した場合:
         \`\`\`json
