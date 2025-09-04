@@ -480,28 +480,25 @@ const TestChatPanel: React.FC<{ persona: PersonaState, onPersonaChange: (newPers
         setChatLoading(true);
 
         try {
-            // "口調を"で始まるメッセージ、または口調変更の可能性をAIに問い合わせる
-            if (messageText.includes('口調') || messageText.includes('口調')) {
-                const responseText = await geminiService.continuePersonaCreationChat(
-                    newHistory.map(msg => ({ text: msg.parts[0].text, role: msg.role === 'user' ? 'user' : 'model' })),
-                    persona
-                );
+            const responseText = await geminiService.continuePersonaCreationChat(
+                newHistory.map(msg => ({ text: msg.parts[0].text, role: msg.role === 'user' ? 'user' : 'model' })),
+                persona
+            );
+            
+            if (Object.keys(responseText.updatedParameters).length > 0) {
+                // 更新されたパラメータの名前をカンマ区切りで取得
+                const updatedFields = Object.keys(responseText.updatedParameters).map(key => {
+                    const label = parameterLabels[key as keyof typeof parameterLabels] || key;
+                    return `「${label}」`;
+                }).join('と');
                 
-                if (responseText.updatedParameters?.tone) {
-                    const newTone = responseText.updatedParameters.tone;
-                    const updatedPersona = { ...persona, tone: newTone };
-                    onPersonaChange(updatedPersona);
-                    // 💡 この行を変更します
-                    const modelMessage: ChatMessage = { role: 'model', parts: [{ text: `ペルソナの口調を「${newTone}」に更新しました。` }] };
-                    setHistory(prev => [...prev, modelMessage]);
-                } else {
-                    const modelMessage: ChatMessage = { role: 'model', parts: [{ text: responseText.responseText }] };
-                    setHistory(prev => [...prev, modelMessage]);
-                }
+                const updatedPersona = { ...persona, ...responseText.updatedParameters };
+                onPersonaChange(updatedPersona);
+
+                const modelMessage: ChatMessage = { role: 'model', parts: [{ text: `ペルソナの${updatedFields}を更新しました。` }] };
+                setHistory(prev => [...prev, modelMessage]);
             } else {
-                // 通常のチャット応答を取得する
-                const responseText = await geminiService.getPersonaChatResponse(persona, newHistory);
-                const modelMessage: ChatMessage = { role: 'model', parts: [{ text: responseText }] };
+                const modelMessage: ChatMessage = { role: 'model', parts: [{ text: responseText.responseText }] };
                 setHistory(prev => [...prev, modelMessage]);
             }
         } catch (error) {

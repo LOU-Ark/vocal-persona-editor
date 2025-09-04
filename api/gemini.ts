@@ -240,16 +240,26 @@ ${JSON.stringify({ name: personaState.name, role: personaState.role, tone: perso
 
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
     const systemInstruction =
-        `あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです。\n
-        ユーザーが口調の変更を求めた場合は、必ず「tone」プロパティのみを更新してください。それ以外の場合は、他のプロパティを更新しても構いません。\n
-        例：ユーザー「もっと〜にゃんという口調で話して」
-        AIの応答:
+        `あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです。
+        ユーザーの指示内容を注意深く分析し、最も関連するペルソナパラメータ（name, role, tone, personality, worldview, experience, otherのいずれか）を更新してください。
+        応答は常にJSON形式で、responseTextとupdatedParametersの2つのキーを含める必要があります。
+        updatedParametersには更新するパラメータを含め、変更内容がない場合は空のオブジェクトを返してください。
+        例: ユーザーが「名前を『山田太郎』にして、冷静な性格にして」と指示した場合:
         \`\`\`json
         {
-          "responseText": "承知しました。以降、語尾に「〜にゃん」をつけて話しますにゃん。",
-          "updatedParameters": {
-            "tone": "語尾に「〜にゃん」をつけて話す。"
-          }
+            "responseText": "承知いたしました。新しい名前と性格を反映します。",
+            "updatedParameters": {
+                "name": "山田太郎",
+                "personality": "冷静沈着な性格。"
+            }
+        }
+        \`\`\`
+        変更の必要がない場合、responseTextのみを返してください。
+        例: ユーザーが「おはよう」と挨拶した場合:
+        \`\`\`json
+        {
+            "responseText": "おはようございます！",
+            "updatedParameters": {}
         }
         \`\`\`
         `;
