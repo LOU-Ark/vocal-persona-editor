@@ -1,4 +1,3 @@
-
 import type { Persona, PersonaState, ChatMessage, WebSource, PersonaCreationChatMessage, PersonaCreationChatResponse, MbtiProfile } from '../types';
 
 async function callApi<T>(action: string, payload: any): Promise<T> {
@@ -67,4 +66,9 @@ export const translateNameToRomaji = (name: string): Promise<string> => {
 
 export const getPersonaChatResponse = (personaState: PersonaState, history: ChatMessage[]): Promise<string> => {
   return callApi('getPersonaChatResponse', { personaState, history });
+};
+
+// ヘルプチャット用の新しい関数
+export const getHelpChatResponse = (history: ChatMessage[]): Promise<string> => {
+  return callApi('getHelpChatResponse', { history });
 };

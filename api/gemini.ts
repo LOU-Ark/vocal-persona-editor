@@ -4,37 +4,37 @@ import type { PersonaState, ChatMessage, WebSource, PersonaCreationChatMessage, 
 // --- Schemas (Copied from original geminiService) ---
 
 const personaSchema = {
-  type: Type.OBJECT,
-  properties: {
-    name: { type: Type.STRING, description: "キャラクターの名前 (The character's name)" },
-    role: { type: Type.STRING, description: "キャラクターの役割や職業 (The character's role or occupation)" },
-    tone: { type: Type.STRING, description: "キャラクターの口調や話し方の特徴 (The character's tone and manner of speaking)" },
-    personality: { type: Type.STRING, description: "キャラクターの性格 (The character's personality)" },
-    worldview: { type: Type.STRING, description: "キャラクターが生きる世界の背景設定 (The background setting or worldview of the character)" },
-    experience: { type: Type.STRING, description: "キャラクターの過去の経験や経歴 (The character's past experiences and background)" },
-    other: { type: Type.STRING, description: "その他の自由記述設定 (Other free-form settings or notes)" },
-  },
-  required: ["name", "role", "tone", "personality", "worldview", "experience"]
+    type: Type.OBJECT,
+    properties: {
+        name: { type: Type.STRING, description: "キャラクターの名前 (The character's name)" },
+        role: { type: Type.STRING, description: "キャラクターの役割や職業 (The character's role or occupation)" },
+        tone: { type: Type.STRING, description: "キャラクターの口調や話し方の特徴 (The character's tone and manner of speaking)" },
+        personality: { type: Type.STRING, description: "キャラクターの性格 (The character's personality)" },
+        worldview: { type: Type.STRING, description: "キャラクターが生きる世界の背景設定 (The background setting or worldview of the character)" },
+        experience: { type: Type.STRING, description: "キャラクターの過去の経験や経歴 (The character's past experiences and background)" },
+        other: { type: Type.STRING, description: "その他の自由記述設定 (Other free-form settings or notes)" },
+    },
+    required: ["name", "role", "tone", "personality", "worldview", "experience"]
 };
 
 const mbtiProfileSchema = {
-    type: Type.OBJECT,
-    properties: {
-        type: { type: Type.STRING, description: "The 4-letter MBTI type code (e.g., 'INFJ', 'ESTP')." },
-        typeName: { type: Type.STRING, description: "The descriptive name for the MBTI type (e.g., 'Advocate', 'Entrepreneur')." },
-        description: { type: Type.STRING, description: "A brief, one-paragraph description of this personality type, written from the perspective of the character in Japanese." },
-        scores: {
-            type: Type.OBJECT,
-            properties: {
-                mind: { type: Type.NUMBER, description: "Score from 0 (Introverted) to 100 (Extraverted)." },
-                energy: { type: Type.NUMBER, description: "Score from 0 (Sensing) to 100 (Intuitive)." },
-                nature: { type: Type.NUMBER, description: "Score from 0 (Thinking) to 100 (Feeling)." },
-                tactics: { type: Type.NUMBER, description: "Score from 0 (Judging) to 100 (Perceiving)." },
-            },
-            required: ["mind", "energy", "nature", "tactics"]
-        }
-    },
-    required: ["type", "typeName", "description", "scores"]
+    type: Type.OBJECT,
+    properties: {
+        type: { type: Type.STRING, description: "The 4-letter MBTI type code (e.g., 'INFJ', 'ESTP')." },
+        typeName: { type: Type.STRING, description: "The descriptive name for the MBTI type (e.g., 'Advocate', 'Entrepreneur')." },
+        description: { type: Type.STRING, description: "A brief, one-paragraph description of this personality type, written from the perspective of the character in Japanese." },
+        scores: {
+            type: Type.OBJECT,
+            properties: {
+                mind: { type: Type.NUMBER, description: "Score from 0 (Introverted) to 100 (Extraverted)." },
+                energy: { type: Type.NUMBER, description: "Score from 0 (Sensing) to 100 (Intuitive)." },
+                nature: { type: Type.NUMBER, description: "Score from 0 (Thinking) to 100 (Feeling)." },
+                tactics: { type: Type.NUMBER, description: "Score from 0 (Judging) to 100 (Perceiving)." },
+            },
+            required: ["mind", "energy", "nature", "tactics"]
+        }
+    },
+    required: ["type", "typeName", "description", "scores"]
 };
 
 // --- API Client Management with Fallback ---
@@ -83,8 +83,8 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function runAiOperationWithFallback<T>(
     fn: (client: GoogleGenAI) => Promise<T>,
-    retries = 5,
-    delay = 2000,
+    retries = 3,
+    delay = 1000,
     backoffFactor = 2
 ): Promise<T> {
     let lastError: any;
@@ -95,24 +95,22 @@ async function runAiOperationWithFallback<T>(
             return await fn(client);
         } catch (error: any) {
             lastError = error;
-            const status = error?.status; // Adjusted to check error.status directly for 429
+            const status = error?.status;
 
             if (status === 429) { // Quota Exceeded
                 console.warn(`Attempt ${i + 1} failed with status 429 (Quota Exceeded).`);
                 if (apiClientManager.switchToNextClient()) {
                     console.log("Retrying with fallback key...");
-                    // Immediately retry with the new key, don't increment 'i' or delay
-                    return await runAiOperationWithFallback(fn, retries, delay, backoffFactor);
+                    return await runAiOperationWithFallback(fn, retries - i, delay, backoffFactor);
                 } else {
                     console.error("All API keys have been exhausted.");
-                    throw error; // No more fallback keys
+                    throw error;
                 }
             } else if (error?.response?.status === 503) { // Service Unavailable
                 console.log(`Attempt ${i + 1} failed with status 503. Retrying in ${delay}ms...`);
                 await sleep(delay);
                 delay *= backoffFactor;
             } else {
-                // For other errors, rethrow immediately
                 throw error;
             }
         }
@@ -123,163 +121,20 @@ async function runAiOperationWithFallback<T>(
 
 
 // --- Main Handler ---
-// 新しいAPIアクション: チャットからの指示でペルソナの口調を更新する
-async function updatePersonaTone(currentPersona: PersonaState, instruction: string): Promise<PersonaState> {
-    const prompt = `以下のキャラクター設定とユーザーからの指示を考慮し、特に「口調 (tone)」の項目を更新してください。
-    - 現在のキャラクター設定: ${JSON.stringify(currentPersona, null, 2)}
-    - ユーザーの指示: "${instruction}"
-    更新された口調の項目のみを、JSONフォーマットで出力しなさい。他の項目は変更しないでください。`;
 
-    const updatedParams = await generateWithSchema<{ tone: string }>(prompt, {
-        type: Type.OBJECT,
-        properties: { tone: { type: Type.STRING, description: "キャラクターの新しい口調や話し方の特徴" } },
-        required: ["tone"]
-    });
-
-    return { ...currentPersona, tone: updatedParams.tone };
+const getErrorMessage = (error: any) => {
+    if (error.message?.includes("The model is overloaded")) {
+        return "AIモデルが混み合っています。しばらくしてから再度お試しください。";
+    }
+    if (error.message?.includes("Quota Exceeded")) {
+        return "APIの利用上限に達しました。別のAPIキーを設定するか、明日以降に再度お試しください。";
+    }
+    if (error.message?.includes("No API_KEY")) {
+        return "APIキーが設定されていません。プロジェクトの.envファイルを確認してください。";
+    }
+    return error.message || "予期せぬエラーが発生しました。";
 }
 
-export default async function handler(req: any, res: any) {
-    if (req.method !== 'POST') {
-        res.setHeader('Allow', ['POST']);
-        return res.status(405).json({ error: 'Method Not Allowed' });
-    }
-
-    // Initialize the API client manager on the first valid request
-    apiClientManager.initialize();
-
-    const { action, payload } = req.body;
-
-    try {
-        if (apiClientManager.clients.length === 0) {
-            const errorMessage = "Server configuration error: No API_KEY or GEMINI_API_KEY environment variable is set.";
-            console.error(errorMessage);
-            return res.status(500).json({ message: errorMessage });
-        }
-
-        let result;
-        switch (action) {
-            case 'createPersonaFromWeb':
-                result = await createPersonaFromWeb(payload.topic);
-                break;
-            case 'extractParamsFromDoc':
-                result = await extractParamsFromDoc(payload.documentText);
-                break;
-            case 'updateParamsFromSummary':
-                result = await updateParamsFromSummary(payload.summaryText);
-                break;
-            case 'generateSummaryFromParams':
-                result = await generateSummaryFromParams(payload.params);
-                break;
-            case 'generateShortSummary':
-                result = await generateShortSummary(payload.fullSummary);
-                break;
-            case 'generateShortTone':
-                result = await generateShortTone(payload.fullTone);
-                break;
-            case 'generateChangeSummary':
-                result = await generateChangeSummary(payload.oldState, payload.newState);
-                break;
-            case 'generateMbtiProfile':
-                result = await generateMbtiProfile(payload.personaState);
-                break;
-            case 'generateRefinementWelcomeMessage':
-                result = await generateRefinementWelcomeMessage(payload.personaState);
-                break;
-            case 'continuePersonaCreationChat':
-                result = await continuePersonaCreationChat(payload.history, payload.currentParams);
-                break;
-            case 'translateNameToRomaji':
-                result = await translateNameToRomaji(payload.name);
-                break;
-            case 'getPersonaChatResponse':
-                result = await getPersonaChatResponse(payload.personaState, payload.history);
-                break;
-            case 'updatePersonaTone':
-                result = await updatePersonaTone(payload.personaState, payload.instruction);
-                break;
-            case 'routeChatInstruction':
-                result = await routeChatInstruction(payload.instruction);
-                break;
-            default:
-                return res.status(400).json({ message: `Invalid action: ${action}` });
-        }
-        return res.status(200).json(result);
-    } catch (error) {
-        console.error(`Error processing action "${action}":`, error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown internal error occurred.";
-        const status = (error as any)?.status || 500; // APIエラーのステータスコードを取得
-        return res.status(status).json({ message: errorMessage });
-    }
-}
-
-// --- Helper Functions (Moved from geminiService) ---
-// --- ツール定義 ---
-// ユーザーの意図がペルソナの口調変更であるかを判断するためのツール
-const updateToneTool = {
-    name: "updatePersonaTone",
-    description: "ユーザーのメッセージがキャラクターの口調を変更する指示である場合に呼び出します。",
-    parameters: {
-        type: Type.OBJECT,
-        properties: {
-            instruction: {
-                type: Type.STRING,
-                description: "新しい口調に関するユーザーの具体的な指示。"
-            }
-        },
-        required: ["instruction"]
-    }
-};
-
-// --- APIロジック ---
-
-// 新しいヘルパー関数：チャットのメッセージを解析して、ツール呼び出しを試みる
-async function routeChatInstruction(instruction: string): Promise<any> {
-    const prompt = `以下のユーザーのメッセージを解析し、もしそれが明確なキャラクターの口調変更指示であれば、\`updatePersonaTone\` ツールを呼び出しなさい。それ以外の場合は、単にユーザーのメッセージをオウム返ししなさい。
-    ユーザーのメッセージ: "${instruction}"
-    `;
-    const response = await runAiOperationWithFallback((client) =>
-        client.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                tools: [updateToneTool]
-            }
-        })
-    );
-    
-    // ツール呼び出しがあったかチェック
-    const toolCall = response.candidates?.[0]?.content?.parts?.[0]?.tool_code;
-    const modelText = response.text;
-
-    if (toolCall) {
-        return { action: toolCall.name, payload: toolCall.args };
-    } else {
-        return { action: "chat", payload: modelText };
-    }
-}
-
-const generateWithSchema = async <T,>(prompt: string, schema: any): Promise<T> => {
-    try {
-        const response = await runAiOperationWithFallback((client) => 
-            client.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: schema,
-                },
-            })
-        );
-
-        const jsonText = response.text.trim();
-        if (!jsonText) throw new Error("AI returned an empty response.");
-        return JSON.parse(jsonText) as T;
-    } catch (error) {
-        console.error("Error during Gemini API call with schema:", error);
-        throw new Error("Failed to get a valid structured response from AI.");
-    }
-}
 
 // --- API Logic (Moved from geminiService) ---
 
@@ -454,3 +309,95 @@ async function getPersonaChatResponse(personaState: PersonaState, history: ChatM
     );
     return response.text;
 };
+
+// ヘルプチャット専用のシステム指示
+const helpAssistantSystemInstruction = `あなたは「Vocal Persona Editor」のガイドAIです。ユーザーの質問に対し、アプリの使い方や機能について、丁寧で分かりやすい口調で回答してください。`;
+
+async function getHelpChatResponse(history: ChatMessage[]): Promise<string> {
+    const latestMessage = history[history.length - 1]?.parts[0]?.text;
+    if (!latestMessage) throw new Error("No message provided to send.");
+
+    const chat = await runAiOperationWithFallback(async (client) => {
+        return client.chats.create({
+            model: 'gemini-2.5-flash',
+            config: { systemInstruction: helpAssistantSystemInstruction },
+            history: history.slice(0, -1)
+        });
+    });
+
+    const response = await runAiOperationWithFallback(() =>
+        chat.sendMessage({ message: latestMessage })
+    );
+    return response.text;
+}
+
+
+export default async function handler(req: any, res: any) {
+    if (req.method !== 'POST') {
+        res.setHeader('Allow', ['POST']);
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    }
+
+    apiClientManager.initialize();
+
+    const { action, payload } = req.body;
+
+    try {
+        if (apiClientManager.clients.length === 0) {
+            const errorMessage = "Server configuration error: No API_KEY or GEMINI_API_KEY environment variable is set.";
+            console.error(errorMessage);
+            return res.status(500).json({ message: errorMessage });
+        }
+
+        let result;
+        switch (action) {
+            case 'createPersonaFromWeb':
+                result = await createPersonaFromWeb(payload.topic);
+                break;
+            case 'extractParamsFromDoc':
+                result = await extractParamsFromDoc(payload.documentText);
+                break;
+            case 'updateParamsFromSummary':
+                result = await updateParamsFromSummary(payload.summaryText);
+                break;
+            case 'generateSummaryFromParams':
+                result = await generateSummaryFromParams(payload.params);
+                break;
+            case 'generateShortSummary':
+                result = await generateShortSummary(payload.fullSummary);
+                break;
+            case 'generateShortTone':
+                result = await generateShortTone(payload.fullTone);
+                break;
+            case 'generateChangeSummary':
+                result = await generateChangeSummary(payload.oldState, payload.newState);
+                break;
+            case 'generateMbtiProfile':
+                result = await generateMbtiProfile(payload.personaState);
+                break;
+            case 'generateRefinementWelcomeMessage':
+                result = await generateRefinementWelcomeMessage(payload.personaState);
+                break;
+            case 'continuePersonaCreationChat':
+                result = await continuePersonaCreationChat(payload.history, payload.currentParams);
+                break;
+            case 'translateNameToRomaji':
+                result = await translateNameToRomaji(payload.name);
+                break;
+            case 'getPersonaChatResponse':
+                result = await getPersonaChatResponse(payload.personaState, payload.history);
+                break;
+            case 'getHelpChatResponse':
+                result = await getHelpChatResponse(payload.history);
+                break;
+            default:
+                return res.status(400).json({ message: `Invalid action: ${action}` });
+        }
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error(`Error processing action "${action}":`, error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown internal error occurred.";
+        const status = (error as any)?.status || 500;
+        return res.status(status).json({ message: errorMessage });
+    }
+}

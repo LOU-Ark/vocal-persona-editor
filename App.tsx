@@ -3,10 +3,27 @@ import { Persona, PersonaState, PersonaHistoryEntry, Voice } from './types';
 import { PersonaEditorScreen, CreatePersonaModal } from './components/PersonaEditorModal';
 import { PersonaList } from './components/PersonaList';
 import { ProductionChat } from './components/ProductionChat';
-import { BackIcon } from './components/icons';
+import { BackIcon, ChatBubbleIcon } from './components/icons';
 import * as geminiService from './services/geminiService';
 import { VoiceManagerModal } from './components/VoiceManagerModal';
 import { Loader } from './components/Loader';
+import { HelpChat } from './components/HelpChat';
+
+// ヘルプチャット専用の静的ペルソナ
+const helpAssistantPersona: PersonaState = {
+  name: 'ガイドAI',
+  role: '「Vocal Persona Editor」の案内役',
+  tone: '丁寧で分かりやすい口調で、ユーザーの質問に簡潔に答えます。',
+  personality: 'ユーザーをサポートすることが好きで、アプリの全機能について熟知しています。',
+  worldview: 'このアプリケーションのデジタル空間に存在する存在です。',
+  experience: '多くのユーザーがアプリの使い方を学ぶのを手伝ってきました。',
+  other: 'ユーザーが迷ったときにいつでも助けられるように待機しています。',
+  summary: '「Vocal Persona Editor」へようこそ！私がこのアプリの使い方をご案内します。ペルソナの作成、編集、チャットの方法など、何でも聞いてください。',
+  shortSummary: 'アプリの使い方を案内するAIアシスタントです。',
+  shortTone: '丁寧で分かりやすい口調で話します。',
+  history: [],
+  voiceId: 'default_voice',
+};
 
 const App: React.FC = () => {
   // Define the initial default personas to be used if nothing is in localStorage
@@ -61,6 +78,7 @@ const App: React.FC = () => {
   const [isVoiceManagerOpen, setIsVoiceManagerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [isHelpChatOpen, setIsHelpChatOpen] = useState(false); // 新しいステート
 
   // --- EFFECTS ---
 
@@ -230,7 +248,7 @@ const App: React.FC = () => {
         <header className="flex-shrink-0">
           <div className="flex justify-between items-center mb-6">
             {activeView === 'list' ? (
-              <div className="text-center md:text-left">
+              <div className="flex-grow text-center md:text-left">
                 <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-600">
                   Interactive Persona Editor
                 </h1>
@@ -249,6 +267,13 @@ const App: React.FC = () => {
                 </h1>
               </div>
             ) : null}
+            {/* ヘルプチャットボタンを追加 */}
+            {activeView === 'list' && (
+              <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors flex items-center gap-2">
+                <ChatBubbleIcon />
+                <span className="hidden md:inline">使い方ガイド</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -297,6 +322,7 @@ const App: React.FC = () => {
           defaultVoice={defaultVoice}
         />
       )}
+      {isHelpChatOpen && <HelpChat onClose={() => setIsHelpChatOpen(false)} persona={helpAssistantPersona} />}
     </div>
   );
 };
