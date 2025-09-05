@@ -267,11 +267,7 @@ const App: React.FC = () => {
                 </h1>
               </div>
             ) : null}
-            {/* ヘルプチャットボタンをどの画面でも表示するように修正 */}
-            <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors flex items-center gap-2">
-              <ChatBubbleIcon />
-              <span className="hidden md:inline">使い方ガイド</span>
-            </button>
+            
           </div>
         </header>
 
@@ -321,6 +317,11 @@ const App: React.FC = () => {
         />
       )}
       {isHelpChatOpen && <HelpChat onClose={() => setIsHelpChatOpen(false)} persona={helpAssistantPersona} />}
+      <div className="fixed bottom-6 right-6 z-50">
+        <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-full shadow-lg flex items-center justify-center">
+          <ChatBubbleIcon />
+        </button>
+      </div>
     </div>
   );
 };
