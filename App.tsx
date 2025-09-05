@@ -244,7 +244,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans">
       {isLoading && <Loader message={loadingMessage} />}
-      <div className={`container mx-auto px-4 py-8 ${activeView === 'chat' ? 'flex flex-col h-screen max-h-screen' : ''}`}>
+      <div className={`container mx-auto px-4 pb-8 ${activeView === 'editor' ? 'pt-0' : 'pt-8'} ${activeView === 'chat' ? 'flex flex-col h-screen max-h-screen' : ''}`}>
         <header className="flex-shrink-0">
           <div className="flex justify-between items-center mb-6">
             {activeView === 'list' ? (

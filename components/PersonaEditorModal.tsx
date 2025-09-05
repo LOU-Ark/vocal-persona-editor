@@ -551,7 +551,7 @@ const TestChatPanel: React.FC<{ persona: PersonaState, onPersonaChange: (newPers
 const TabButton: React.FC<{ onClick: () => void; isActive: boolean; children: React.ReactNode }> = ({ onClick, isActive, children }) => (
   <button
     onClick={onClick}
-    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 ${
+    className={`whitespace-nowrap px-3 py-1 sm:px-4 sm:py-1.5 text-sm font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 ${
       isActive
         ? 'bg-indigo-600 text-white'
         : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600'
@@ -708,13 +708,13 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
     <div className="flex flex-col">
        {isLoading && <Loader message={loadingMessage} />}
        
-       <header className="flex items-center gap-4 mb-6">
+       <header className="sticky top-0 z-20 bg-gray-900 flex items-center gap-4 pb-6">
             <button onClick={onBack} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
                 <BackIcon />
             </button>
             <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0">{parameters.name}</h2>
             {/* Tabs for mobile view, hidden on large screens */}
-            <div className="flex flex-wrap gap-2 p-1 bg-gray-800 rounded-lg ml-4 lg:hidden">
+            <div className="flex flex-wrap gap-1 p-1 bg-gray-800 rounded-lg ml-4 lg:hidden">
                 <TabButton isActive={activeTab === 'editor'} onClick={() => setActiveTab('editor')}>Editor</TabButton>
                 <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Tools</TabButton>
                 <TabButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')}>Test Chat</TabButton>
