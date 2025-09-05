@@ -714,7 +714,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
             </button>
             <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0">{parameters.name}</h2>
             {/* Tabs for mobile view, hidden on large screens */}
-            <div className="flex gap-2 p-1 bg-gray-800 rounded-lg ml-4 lg:hidden">
+            <div className="flex flex-wrap gap-2 p-1 bg-gray-800 rounded-lg ml-4 lg:hidden">
                 <TabButton isActive={activeTab === 'editor'} onClick={() => setActiveTab('editor')}>Editor</TabButton>
                 <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Tools</TabButton>
                 <TabButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')}>Test Chat</TabButton>

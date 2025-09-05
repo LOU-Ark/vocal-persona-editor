@@ -47,8 +47,8 @@ export const HelpChat: React.FC<HelpChatProps> = ({ onClose, persona }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 p-4">
-            <div className="bg-gray-800 rounded-lg shadow-2xl w-full max-w-lg h-[80vh] flex flex-col relative">
+        <div className="fixed bottom-24 right-6 z-50">
+            <div className="bg-gray-800 rounded-lg shadow-2xl w-[400px] h-[60vh] flex flex-col relative">
                 <header className="flex justify-between items-center p-4 border-b border-gray-700">
                     <h2 className="text-xl font-bold text-white">使い方ガイド</h2>
                     <button onClick={onClose} className="text-gray-400 hover:text-white"><CloseIcon/></button>
