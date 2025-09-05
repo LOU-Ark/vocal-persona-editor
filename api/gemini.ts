@@ -149,22 +149,22 @@ async function generateWithSchema<T>(prompt: string, schema: any): Promise<T> {
     const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: prompt
+            contents: prompt,
+            config: { response_schema: schema } // response_schemaをconfigに追加
         })
     );
 
     let text = (response && response.text) ? String(response.text).trim() : '';
 
     // コードブロック内の JSON を取り出す
-    const mdMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (mdMatch && mdMatch[1]) {
-        text = mdMatch[1].trim();
+    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (markdownMatch && markdownMatch[1]) {
+        text = markdownMatch[1];
     } else {
-        // 最初と最後の波括弧を見つける
-        const first = text.indexOf('{');
-        const last = text.lastIndexOf('}');
-        if (first !== -1 && last > first) {
-            text = text.substring(first, last + 1);
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+            text = text.substring(firstBrace, lastBrace + 1);
         }
     }
 
@@ -172,7 +172,6 @@ async function generateWithSchema<T>(prompt: string, schema: any): Promise<T> {
         if (!text) throw new Error('AI returned an empty response.');
         return JSON.parse(text) as T;
     } catch (err: any) {
-        // 解析に失敗した場合、デバッグしやすいように元のテキストを含めてエラーを投げる
         throw new Error(`Failed to parse JSON from AI response: ${err?.message || err}. Response text:\n${text}`);
     }
 }
@@ -367,8 +366,24 @@ async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProf
     delete personaData.shortSummary;
     delete personaData.shortTone;
 
-    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成してください...\n\nキャラクター設定:\n${JSON.stringify(personaData, null, 2)}`;
-    return await generateWithSchema(prompt, mbtiProfileSchema);
+    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成しなさい。応答は必ずJSON形式で、以下のスキーマに従ってください。
+    
+スキーマ:
+{
+  "type": "string",
+  "typeName": "string",
+  "description": "string",
+  "scores": {
+    "mind": "number",
+    "energy": "number",
+    "nature": "number",
+    "tactics": "number"
+  }
+}
+
+キャラクター設定:
+${JSON.stringify(personaData, null, 2)}`;
+    return await generateWithSchema<MbtiProfile>(prompt, mbtiProfileSchema);
 };
 
 async function generateRefinementWelcomeMessage(personaState: PersonaState): Promise<string> {
