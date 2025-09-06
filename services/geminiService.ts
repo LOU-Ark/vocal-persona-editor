@@ -56,6 +56,10 @@ export const generateRefinementWelcomeMessage = (personaState: PersonaState): Pr
   return callApi('generateRefinementWelcomeMessage', { personaState });
 };
 
+export const generateUsageGuideWelcomeMessage = (personaState: PersonaState): Promise<string> => {
+  return callApi('generateUsageGuideWelcomeMessage', { personaState });
+};
+
 export const continuePersonaCreationChat = (history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> => {
   return callApi('continuePersonaCreationChat', { history, currentParams });
 };

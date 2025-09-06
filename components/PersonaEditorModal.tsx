@@ -460,7 +460,11 @@ const TestChatPanel: React.FC<{ persona: PersonaState, onPersonaChange: (newPers
     const chatBoxRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        setHistory([{ role: 'model', parts: [{ text: `こんにちは、${persona.name}です。何でも聞いてください。` }] }]);
+        const initialMessage = `こんにちは、${persona.name}です。何でも聞いてください。`;
+        const truncatedMessage = initialMessage.length > 50
+            ? initialMessage.substring(0, 50) + '...'
+            : initialMessage;
+        setHistory([{ role: 'model', parts: [{ text: truncatedMessage }] }]);
     }, [persona.name]);
     
     useEffect(() => {

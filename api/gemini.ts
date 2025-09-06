@@ -332,6 +332,18 @@ ${JSON.stringify({ name: personaState.name, role: personaState.role, tone: perso
     return response.text;
 }
 
+async function generateUsageGuideWelcomeMessage(personaState: PersonaState): Promise<string> {
+    const prompt = `あなたは「Vocal Persona Editor」のガイドAIです。以下のペルソナ設定に基づいて、ユーザーへの最初の挨拶文を約50字で作成してください。ペルソナの要約を参考に、親しみやすく、かつ簡潔にまとめてください。
+
+ペルソナの要約: ${personaState.summary}
+
+挨拶文:`;
+    const response = await runAiOperationWithFallback((client) =>
+        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
+    );
+    return response.text.trim();
+}
+
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
     const systemInstruction =
         `あなたは、ユーザーがキャラクター（ペルソナ）を作成するのを手伝う、創造的なアシスタントです。
@@ -536,6 +548,9 @@ export default async function handler(req: any, res: any) {
                 break;
             case 'generateRefinementWelcomeMessage':
                 result = await generateRefinementWelcomeMessage(payload.personaState);
+                break;
+            case 'generateUsageGuideWelcomeMessage':
+                result = await generateUsageGuideWelcomeMessage(payload.personaState);
                 break;
             case 'continuePersonaCreationChat':
                 result = await continuePersonaCreationChat(payload.history, payload.currentParams);

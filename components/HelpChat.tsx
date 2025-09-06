@@ -19,8 +19,22 @@ export const HelpChat: React.FC<HelpChatProps> = ({ onClose, persona, allPersona
     const chatBoxRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Reset chat history when the persona changes
-        setChatHistory([{ role: 'model', parts: [{ text: persona.summary }] }]);
+        const fetchWelcomeMessage = async () => {
+            setIsLoading(true);
+            try {
+                const welcomeMessage = await geminiService.generateUsageGuideWelcomeMessage(persona);
+                setChatHistory([{ role: 'model', parts: [{ text: welcomeMessage }] }]);
+            } catch (error) {
+                console.error("Failed to generate welcome message:", error);
+                setChatHistory([{ role: 'model', parts: [{ text: "ようこそ！何かお手伝いできることはありますか？" }] }]); // Fallback message
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        if (persona) { // Ensure persona is not null or undefined
+            fetchWelcomeMessage();
+        }
     }, [persona]); // Depend on the entire persona object to reset chat when it changes
 
     useEffect(() => {
