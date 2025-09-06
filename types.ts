@@ -72,3 +72,13 @@ export interface PersonaCreationChatResponse {
   responseText: string;
   updatedParameters: Partial<PersonaState>;
 }
+
+// Represents a user-submitted issue or feedback
+export interface Issue {
+  id: string;
+  title: string;
+  body: string;
+  status: 'open' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+}

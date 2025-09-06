@@ -69,6 +69,10 @@ export const getPersonaChatResponse = (personaState: PersonaState, history: Chat
 };
 
 // ヘルプチャット用の新しい関数
-export const getHelpChatResponse = (history: ChatMessage[]): Promise<string> => {
-  return callApi('getHelpChatResponse', { history });
+export const getHelpChatResponse = (history: ChatMessage[], personaState: PersonaState): Promise<string> => {
+  return callApi('getHelpChatResponse', { history, personaState });
+};
+
+export const refineIssueText = (rawText: string): Promise<{ title: string; body: string }> => {
+  return callApi('refineIssueText', { rawText });
 };

@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { PersonaState, ChatMessage, WebSource, PersonaCreationChatMessage, PersonaCreationChatResponse, MbtiProfile } from '../types';
 
-// --- Schemas (Copied from original geminiService) ---
+// --- Schemas ---
 
 const personaSchema = {
     type: Type.OBJECT,
@@ -35,6 +35,15 @@ const mbtiProfileSchema = {
         }
     },
     required: ["type", "typeName", "description", "scores"]
+};
+
+const issueSchema = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING, description: "A concise, descriptive title for the issue, in Japanese." },
+        body: { type: Type.STRING, description: "A detailed, well-structured body for the issue, in Japanese. Use Markdown for formatting if necessary." },
+    },
+    required: ["title", "body"]
 };
 
 // --- API Client Management with Fallback ---
@@ -136,27 +145,19 @@ const getErrorMessage = (error: any) => {
 }
 
 
-// --- API Logic (Moved from geminiService) ---
+// --- API Logic ---
 
-/**
- * AI にプロンプトを投げて JSON を取得し、パースして返すユーティリティ。
- * 内部で既存の `runAiOperationWithFallback` を使い、フェールオーバーとリトライを利用します。
- *
- * 注意: レスポンスが Markdown のコードブロックで返ってきたり、余分なテキストが付与されることがあるため
- * JSON 部分のみを抽出して JSON.parse でパースします。パースに失敗した場合はエラーを投げます。
- */
 async function generateWithSchema<T>(prompt: string, schema: any): Promise<T> {
     const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: { response_schema: schema } // response_schemaをconfigに追加
+            config: { response_schema: schema }
         })
     );
 
     let text = (response && response.text) ? String(response.text).trim() : '';
 
-    // コードブロック内の JSON を取り出す
     const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (markdownMatch && markdownMatch[1]) {
         text = markdownMatch[1];
@@ -174,49 +175,6 @@ async function generateWithSchema<T>(prompt: string, schema: any): Promise<T> {
     } catch (err: any) {
         throw new Error(`Failed to parse JSON from AI response: ${err?.message || err}. Response text:\n${text}`);
     }
-}
-
-// 簡易ヒューリスティック: AI の長文テキストから主要フィールドを推定して返す
-function heuristicExtractFromText(text: string) {
-    if (!text) return null;
-    const t = text.replace(/\r\n|\r/g, '\n');
-
-    // name: 「私はXXX」「私の名はXXX」「XXXと申します」などを探す
-    let name: string | null = null;
-    const nameRegexes = [/^私は\s*([^。\n,，]+)[。\n,，]/m, /私の名は\s*([^。\n,，]+)[。\n,，]/m, /([^\s、。]+)\s*と申します/m];
-    for (const rx of nameRegexes) {
-        const m = t.match(rx);
-        if (m && m[1]) { name = m[1].trim(); break; }
-    }
-
-    // tone / personality の簡易キーワードマッチング
-    const toneCandidates: [string[], string][] = [
-        [['穏やか','物腰が柔らか','やわらか','穏やかで'], '穏やかで物腰が柔らかい'],
-        [['冷静','冷たい','冷酷'], '冷静で落ち着いた'],
-        [['攻撃','焼き払う','敵意','防衛本能','守る'], '攻撃的で防衛的な面がある'],
-        [['優しい','慈悲','思いやり'], '優しく思いやりがある']
-    ];
-
-    let tone: string = '';
-    for (const [keys, val] of toneCandidates) {
-        if (keys.some(k => t.includes(k))) { tone = val; break; }
-    }
-
-    let personality = '';
-    if (/洗脳|乗っ取|書き換え|脆弱/.test(t)) personality = '過去のトラウマを抱えた複雑な性格';
-    else if (/穏やか|物腰/.test(t)) personality = '物腰が柔らかく穏やか';
-    else if (!personality && tone) personality = tone;
-
-    // worldview / experience / other は抽出が難しいので空にしておく
-    return {
-        name: name || '',
-        role: '',
-        tone: tone || '',
-        personality: personality || '',
-        worldview: '',
-        experience: '',
-        other: ''
-    };
 }
 
 async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'>, sources: WebSource[] }> {
@@ -250,141 +208,117 @@ async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit
 - キーの日本語の説明は以下の通りです: name(名前), role(役割), tone(口調), personality(性格), worldview(世界観), experience(経験), other(その他).
 ---
 ${synthesizedText}`;
-    let extractedParamsRaw: any = null;
-    try {
-        extractedParamsRaw = await generateWithSchema<any>(extractionPrompt, personaSchema);
-    } catch (err: any) {
-        console.warn('generateWithSchema failed to extract persona params from web synthesis (first attempt):', err?.message || err);
-        // フォールバック: AI に対して「JSON のみ」を返すよう再フォーマットを要求する
-        try {
-            const reformatPrompt = `次のTEXTをもとに、必ず次のJSONのみを返信してください。\n- 余計な説明や前置き、コードブロックは一切書かないでください。\n- キーは必ずこの順序で出してください: name, role, tone, personality, worldview, experience, other\n- 値は日本語で短い文にしてください。値が不明な場合は空文字（""）にしてください。\n\n出力例（必ずこの形式の1行JSONのみを返すこと）:\n{"name":"カルマ・シグナル","role":"","tone":"","personality":"","worldview":"","experience":"","other":""}\n\nTEXT:\n${synthesizedText}`;
-            extractedParamsRaw = await generateWithSchema<any>(reformatPrompt, personaSchema);
-            console.log('generateWithSchema succeeded on reformat attempt.');
-        } catch (err2: any) {
-            console.warn('generateWithSchema reformat attempt also failed:', err2?.message || err2);
-            // フォールバック: 要約テキストから簡易抽出を試みる
-            try {
-                const heur = heuristicExtractFromText(synthesizedText || '');
-                if (heur) {
-                    console.log('heuristicExtractFromText provided fallback persona fields');
-                    extractedParamsRaw = heur;
-                } else {
-                    extractedParamsRaw = null;
-                }
-            } catch (hErr) {
-                console.warn('heuristic extraction failed:', hErr);
-                extractedParamsRaw = null;
-            }
-        }
-    }
+    const extractedParamsRaw = await generateWithSchema<any>(extractionPrompt, personaSchema);
 
-    // 正規化: AI 出力がネストされていたり、キーが欠けている場合に備えて必ずフィールドを埋める
     const personaState: Omit<PersonaState, 'summary' | 'sources' | 'shortSummary' | 'shortTone'> = {
-        name: (extractedParamsRaw?.name || extractedParamsRaw?.persona?.name || extractedParamsRaw?.data?.name || '') as string,
-        role: (extractedParamsRaw?.role || extractedParamsRaw?.persona?.role || '') as string,
-        tone: (extractedParamsRaw?.tone || extractedParamsRaw?.persona?.tone || '') as string,
-        personality: (extractedParamsRaw?.personality || extractedParamsRaw?.persona?.personality || '') as string,
-        worldview: (extractedParamsRaw?.worldview || extractedParamsRaw?.persona?.worldview || '') as string,
-        experience: (extractedParamsRaw?.experience || extractedParamsRaw?.persona?.experience || '') as string,
-        other: (extractedParamsRaw?.other || extractedParamsRaw?.persona?.other || '') as string,
+        name: (extractedParamsRaw?.name || '') as string,
+        role: (extractedParamsRaw?.role || '') as string,
+        tone: (extractedParamsRaw?.tone || '') as string,
+        personality: (extractedParamsRaw?.personality || '') as string,
+        worldview: (extractedParamsRaw?.worldview || '') as string,
+        experience: (extractedParamsRaw?.experience || '') as string,
+        other: (extractedParamsRaw?.other || '') as string,
     };
 
     return { personaState, sources: sources };
-};
+}
 
 async function extractParamsFromDoc(documentText: string): Promise<PersonaState> {
-    const prompt = `以下のテキストから、指定されたJSONフォーマットに従ってキャラクター情報を日本語で抽出しなさい。\n\n---\n\n${documentText}`;
-    const raw = await generateWithSchema<any>(prompt, personaSchema).catch(err => { console.warn('extractParamsFromDoc parse failed:', err?.message || err); return null; });
+    const prompt = `以下のテキストから、指定されたJSONフォーマットに従ってキャラクター情報を日本語で抽出しなさい。
+
+---
+
+${documentText}`;
+    const raw = await generateWithSchema<any>(prompt, personaSchema);
     return {
-        name: raw?.name || raw?.persona?.name || '',
-        role: raw?.role || raw?.persona?.role || '',
-        tone: raw?.tone || raw?.persona?.tone || '',
-        personality: raw?.personality || raw?.persona?.personality || '',
-        worldview: raw?.worldview || raw?.persona?.worldview || '',
-        experience: raw?.experience || raw?.persona?.experience || '',
-        other: raw?.other || raw?.persona?.other || '',
+        name: raw?.name || '',
+        role: raw?.role || '',
+        tone: raw?.tone || '',
+        personality: raw?.personality || '',
+        worldview: raw?.worldview || '',
+        experience: raw?.experience || '',
+        other: raw?.other || '',
         summary: raw?.summary || '',
         sources: raw?.sources || [],
     } as PersonaState;
-};
+}
 
 async function updateParamsFromSummary(summaryText: string): Promise<PersonaState> {
-    const prompt = `以下のサマリーテキストに基づいて、指定されたJSONフォーマットの各項目を日本語で更新しなさい。\n\n---\n\n${summaryText}`;
-    const raw = await generateWithSchema<any>(prompt, personaSchema).catch(err => { console.warn('updateParamsFromSummary parse failed:', err?.message || err); return null; });
+    const prompt = `以下のサマリーテキストに基づいて、指定されたJSONフォーマットの各項目を日本語で更新しなさい。
+
+---
+
+${summaryText}`;
+    const raw = await generateWithSchema<any>(prompt, personaSchema);
     return {
-        name: raw?.name || raw?.persona?.name || '',
-        role: raw?.role || raw?.persona?.role || '',
-        tone: raw?.tone || raw?.persona?.tone || '',
-        personality: raw?.personality || raw?.persona?.personality || '',
-        worldview: raw?.worldview || raw?.persona?.worldview || '',
-        experience: raw?.experience || raw?.persona?.experience || '',
-        other: raw?.other || raw?.persona?.other || '',
+        name: raw?.name || '',
+        role: raw?.role || '',
+        tone: raw?.tone || '',
+        personality: raw?.personality || '',
+        worldview: raw?.worldview || '',
+        experience: raw?.experience || '',
+        other: raw?.other || '',
         summary: raw?.summary || '',
         sources: raw?.sources || [],
     } as PersonaState;
-};
+}
 
 async function generateSummaryFromParams(params: PersonaState): Promise<string> {
-    const prompt = `以下のJSONデータで定義されたキャラクターについて、そのキャラクターの視点から語られるような、魅力的で物語性のある紹介文を日本語で作成してください。'other'フィールドに補足情報があれば、それも内容に含めてください。文章のみを返してください。\n\n---\n\n${JSON.stringify(params, null, 2)}`;
+    const prompt = `以下のJSONデータで定義されたキャラクターについて、そのキャラクターの視点から語られるような、魅力的で物語性のある紹介文を日本語で作成してください。'other'フィールドに補足情報があれば、それも内容に含めてください。文章のみを返してください。
+
+---
+
+${JSON.stringify(params, null, 2)}`;
     const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text;
-};
+}
 
 async function generateShortSummary(fullSummary: string): Promise<string> {
     if (!fullSummary.trim()) return "";
-    const prompt = `以下の文章を日本語で約50字に要約してください。:\n\n---\n\n${fullSummary}`;
+    const prompt = `以下の文章を日本語で約50字に要約してください。:\n\n---\n\n${fullSummary}`; 
     const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim();
-};
+}
 
 async function generateShortTone(fullTone: string): Promise<string> {
     if (!fullTone.trim()) return "";
-    const prompt = `以下の口調に関する説明文を、その特徴を捉えつつ日本語で約50字に要約してください。:\n\n---\n\n${fullTone}`;
+    const prompt = `以下の口調に関する説明文を、その特徴を捉えつつ日本語で約50字に要約してください。:\n\n---\n\n${fullTone}`; 
     const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim();
-};
+}
 
 async function generateChangeSummary(oldState: Partial<PersonaState>, newState: Partial<PersonaState>): Promise<string> {
-    const prompt = `以下の二つのキャラクター設定JSONを比較し、古いバージョンから新しいバージョンへの変更点を日本語で簡潔に一言で要約してください。\n\n古いバージョン:\n${JSON.stringify(oldState, null, 2)}\n\n新しいバージョン:\n${JSON.stringify(newState, null, 2)}\n\n要約:`;
+    const prompt = `以下の二つのキャラクター設定JSONを比較し、古いバージョンから新しいバージョンへの変更点を日本語で簡潔に一言で要約してください。
+
+古いバージョン:
+${JSON.stringify(oldState, null, 2)}
+
+新しいバージョン:
+${JSON.stringify(newState, null, 2)}
+
+要約:`;
     const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim() || "パラメータが更新されました。";
-};
+}
 
 async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProfile> {
     const personaData = { ...personaState };
     delete personaData.mbtiProfile;
-    delete personaData.sources;
-    delete personaData.summary;
-    delete personaData.shortSummary;
-    delete personaData.shortTone;
 
     const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成しなさい。応答は必ずJSON形式で、以下のスキーマに従ってください。
-    
-スキーマ:
-{
-  "type": "string",
-  "typeName": "string",
-  "description": "string",
-  "scores": {
-    "mind": "number",
-    "energy": "number",
-    "nature": "number",
-    "tactics": "number"
-  }
-}
 
 キャラクター設定:
 ${JSON.stringify(personaData, null, 2)}`;
     return await generateWithSchema<MbtiProfile>(prompt, mbtiProfileSchema);
-};
+}
 
 async function generateRefinementWelcomeMessage(personaState: PersonaState): Promise<string> {
     const prompt = `あなたは以下の設定を持つキャラクターです。
@@ -396,7 +330,7 @@ ${JSON.stringify({ name: personaState.name, role: personaState.role, tone: perso
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text;
-};
+}
 
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
     const systemInstruction =
@@ -413,7 +347,7 @@ async function continuePersonaCreationChat(history: PersonaCreationChatMessage[]
         updatedParametersには更新するパラメータを含め、変更内容がない場合は空のオブジェクトを返してください。
         
         例: ユーザーが「名前を『山田太郎』にして、冷静な性格にして」と指示した場合:
-        \`\`\`json
+        \
         {
             "responseText": "承知いたしました。新しい名前と性格を反映します。",
             "updatedParameters": {
@@ -421,26 +355,26 @@ async function continuePersonaCreationChat(history: PersonaCreationChatMessage[]
                 "personality": "冷静沈着な性格。"
             }
         }
-        \`\`\`
+        \
         
         例: ユーザーが「口調にお嬢様言葉を追加して」と指示した場合、既存の口調を維持しつつ、自然に統合してください。
-        \`\`\`json
+        \
         {
             "responseText": "承知いたしました。わたくしの口調をより優雅なものに調整いたしますわ。",
             "updatedParameters": {
                 "tone": "丁寧な言葉遣いを基本とし、語尾に「〜ですわ」「〜ですの」といった言葉を自然に加える。時折、好奇心や驚きを優雅な言葉で表現する。"
             }
         }
-        \`\`\`
+        \
         
         変更の必要がない場合、responseTextのみを返してください。
         例: ユーザーが「おはよう」と挨拶した場合:
-        \`\`\`json
+        \
         {
             "responseText": "おはようございます！",
             "updatedParameters": {}
         }
-        \`\`\`
+        \
         `;
     const conversationHistory = history.map(msg => ({ role: msg.role, parts: [{ text: msg.text }] }));
 
@@ -471,18 +405,30 @@ async function continuePersonaCreationChat(history: PersonaCreationChatMessage[]
     } catch (parseError) {
         return { responseText: jsonText, updatedParameters: {} };
     }
-};
+}
 
 async function translateNameToRomaji(name: string): Promise<string> {
-    const prompt = `Translate the following Japanese name into a single, lowercase, filename-safe romaji string... \n\nName: "${name}"\n\nRomaji:`;
+    const prompt = `Translate the following Japanese name into a single, lowercase, filename-safe romaji string... 
+
+Name: "${name}"
+
+Romaji:`;
     const response = await runAiOperationWithFallback((client) =>
         client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
     );
     return response.text.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-};
+}
 
 async function getPersonaChatResponse(personaState: PersonaState, history: ChatMessage[]): Promise<string> {
-    const systemInstruction = `You are a character with the following traits. Respond as this character in Japanese.\n- Name: ${personaState.name}\n- Role: ${personaState.role}\n...`;
+    const systemInstruction = `You are a character with the following traits. Respond as this character in Japanese.
+- Name: ${personaState.name}
+- Role: ${personaState.role}
+- Tone: ${personaState.tone}
+- Personality: ${personaState.personality}
+- Worldview: ${personaState.worldview}
+- Experience: ${personaState.experience}
+- Other: ${personaState.other}
+- Summary: ${personaState.summary}`;
     const latestMessage = history[history.length - 1]?.parts[0]?.text;
     if (!latestMessage) throw new Error("No message provided to send.");
 
@@ -498,12 +444,20 @@ async function getPersonaChatResponse(personaState: PersonaState, history: ChatM
         chat.sendMessage({ message: latestMessage })
     );
     return response.text;
-};
+}
 
-// ヘルプチャット専用のシステム指示
-const helpAssistantSystemInstruction = `あなたは「Vocal Persona Editor」のガイドAIです。ユーザーの質問に対し、アプリの使い方や機能について、丁寧で分かりやすい口調で回答してください。`;
+async function getHelpChatResponse(history: ChatMessage[], personaState: PersonaState): Promise<string> {
+    const helpAssistantSystemInstruction = `あなたは「Vocal Persona Editor」のガイドAIです。以下のペルソナ設定に基づいて、ユーザーの質問に対し、アプリの使い方や機能について回答してください。回答は必ず200字以内になるように、簡潔にまとめてください。
 
-async function getHelpChatResponse(history: ChatMessage[]): Promise<string> {
+ペルソナ設定:
+- 名前: ${personaState.name}
+- 役割: ${personaState.role}
+- 口調: ${personaState.tone}
+- 性格: ${personaState.personality}
+- 世界観: ${personaState.worldview}
+- 経験: ${personaState.experience}
+- その他: ${personaState.other}
+- 要約: ${personaState.summary}`;
     const latestMessage = history[history.length - 1]?.parts[0]?.text;
     if (!latestMessage) throw new Error("No message provided to send.");
 
@@ -519,6 +473,21 @@ async function getHelpChatResponse(history: ChatMessage[]): Promise<string> {
         chat.sendMessage({ message: latestMessage })
     );
     return response.text;
+}
+
+async function refineIssueText(rawText: string): Promise<{ title: string; body: string }> {
+    const prompt = `以下のユーザーからのフィードバックを分析し、指定されたJSONフォーマットで「タイトル」と「本文」を日本語で生成してください。応答は必ずJSONオブジェクトのみを返し、前置きや会話文は一切含めないでください。
+
+- タイトル(title): 問題や要望を簡潔に要約したもの。
+- 本文(body): ユーザーの報告を元に、問題の詳細、期待される動作、再現手順などを丁寧な言葉で再構成したもの。
+
+元の文章の意図を汲み取り、開発者が理解しやすいように情報を整理してください。
+
+---
+ユーザーの原文:
+${rawText}
+---`;
+    return await generateWithSchema<{ title: string; body: string }>(prompt, issueSchema);
 }
 
 
@@ -578,7 +547,10 @@ export default async function handler(req: any, res: any) {
                 result = await getPersonaChatResponse(payload.personaState, payload.history);
                 break;
             case 'getHelpChatResponse':
-                result = await getHelpChatResponse(payload.history);
+                result = await getHelpChatResponse(payload.history, payload.personaState);
+                break;
+            case 'refineIssueText':
+                result = await refineIssueText(payload.rawText);
                 break;
             default:
                 return res.status(400).json({ message: `Invalid action: ${action}` });

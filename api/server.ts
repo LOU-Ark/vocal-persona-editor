@@ -15,6 +15,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import configHandler from './config';
 import geminiHandler from './gemini';
 import ttsHandler from './tts';
+import { getIssuesHandler, createIssueHandler } from './issues'; // Import issue handlers
 
 const app = express();
 const port = 3001;
@@ -29,6 +30,10 @@ app.use(express.json());
 app.get('/api/config', (req, res) => configHandler(req, res));
 app.post('/api/gemini', (req, res) => geminiHandler(req, res));
 app.post('/api/tts', (req, res) => ttsHandler(req, res));
+
+// Register Issue API routes
+app.get('/api/issues', (req, res) => getIssuesHandler(req, res));
+app.post('/api/issues', (req, res) => createIssueHandler(req, res));
 
 app.listen(port, () => {
   console.log(`✅ API server listening at http://localhost:${port}`);

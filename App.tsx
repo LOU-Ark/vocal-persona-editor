@@ -8,22 +8,9 @@ import * as geminiService from './services/geminiService';
 import { VoiceManagerModal } from './components/VoiceManagerModal';
 import { Loader } from './components/Loader';
 import { HelpChat } from './components/HelpChat';
+import { IssueReporter } from './components/IssueReporter'; // Import the new component
 
-// ヘルプチャット専用の静的ペルソナ
-const helpAssistantPersona: PersonaState = {
-  name: 'ガイドAI',
-  role: '「Vocal Persona Editor」の案内役',
-  tone: '丁寧で分かりやすい口調で、ユーザーの質問に簡潔に答えます。',
-  personality: 'ユーザーをサポートすることが好きで、アプリの全機能について熟知しています。',
-  worldview: 'このアプリケーションのデジタル空間に存在する存在です。',
-  experience: '多くのユーザーがアプリの使い方を学ぶのを手伝ってきました。',
-  other: 'ユーザーが迷ったときにいつでも助けられるように待機しています。',
-  summary: '「Vocal Persona Editor」へようこそ！私がこのアプリの使い方をご案内します。ペルソナの作成、編集、チャットの方法など、何でも聞いてください。',
-  shortSummary: 'アプリの使い方を案内するAIアシスタントです。',
-  shortTone: '丁寧で分かりやすい口調で話します。',
-  history: [],
-  voiceId: 'default_voice',
-};
+
 
 const App: React.FC = () => {
   // Define the initial default personas to be used if nothing is in localStorage
@@ -78,7 +65,9 @@ const App: React.FC = () => {
   const [isVoiceManagerOpen, setIsVoiceManagerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
-  const [isHelpChatOpen, setIsHelpChatOpen] = useState(false); // 新しいステート
+  const [isHelpChatOpen, setIsHelpChatOpen] = useState(false);
+  const [isIssueReporterOpen, setIsIssueReporterOpen] = useState(false); // New state for issue reporter
+  const [selectedHelpPersonaId, setSelectedHelpPersonaId] = useState<string | null>(null);
 
   // --- EFFECTS ---
 
@@ -140,6 +129,13 @@ const App: React.FC = () => {
     }
   }, [personas, defaultVoice]);
 
+  // Initialize selectedHelpPersonaId with the ID of the first persona if available
+  useEffect(() => {
+    if (personas.length > 0 && selectedHelpPersonaId === null) {
+      setSelectedHelpPersonaId(personas[0].id);
+    }
+  }, [personas, selectedHelpPersonaId]);
+
   // --- MEMOS ---
 
   const allVoices = useMemo(() => {
@@ -151,6 +147,10 @@ const App: React.FC = () => {
   }, [defaultVoice, customVoices]);
 
   const activePersonaForHeader = useMemo(() => editingPersona, [editingPersona]);
+
+  const helpChatPersona = useMemo(() => {
+    return personas.find(p => p.id === selectedHelpPersonaId) || personas[0];
+  }, [personas, selectedHelpPersonaId]);
 
   // --- HANDLERS ---
 
@@ -316,7 +316,25 @@ const App: React.FC = () => {
           defaultVoice={defaultVoice}
         />
       )}
-      {isHelpChatOpen && <HelpChat onClose={() => setIsHelpChatOpen(false)} persona={helpAssistantPersona} />}
+      {isHelpChatOpen && 
+        <HelpChat 
+          onClose={() => setIsHelpChatOpen(false)} 
+          persona={helpChatPersona}
+          allPersonas={personas}
+          selectedPersonaId={selectedHelpPersonaId}
+          onSelectPersona={setSelectedHelpPersonaId}
+          onReportIssueClick={() => {
+            setIsHelpChatOpen(false);
+            setIsIssueReporterOpen(true);
+          }}
+        />
+      }
+      {isIssueReporterOpen && 
+        <IssueReporter 
+          isOpen={isIssueReporterOpen} 
+          onClose={() => setIsIssueReporterOpen(false)} 
+        />
+      }
       <div className="fixed bottom-6 right-6 z-50">
         <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-full shadow-lg flex items-center justify-center">
           <ChatBubbleIcon />
