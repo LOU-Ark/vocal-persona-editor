@@ -567,250 +567,250 @@ const TabButton: React.FC<{ onClick: () => void; isActive: boolean; children: Re
 
 
 export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSave, initialPersona, voices, onAddVoice }) => {
-  const [parameters, setParameters] = useState<PersonaState & { id: string }>({ ...emptyPersona, ...initialPersona });
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [loadingMessage, setLoadingMessage] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [editingField, setEditingField] = useState<{ field: keyof PersonaState; label: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'editor' | 'ai' | 'chat'>('editor');
+  const [parameters, setParameters] = useState<PersonaState & { id: string }>({ ...emptyPersona, ...initialPersona });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingMessage, setLoadingMessage] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<{ field: keyof PersonaState; label: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'editor' | 'ai' | 'chat'>('editor');
 
 
-  // Reset state when initial persona changes
-  useEffect(() => {
-    const updatedParameters = { ...emptyPersona, ...initialPersona };
+  // Reset state when initial persona changes
+  useEffect(() => {
+    const updatedParameters = { ...emptyPersona, ...initialPersona };
 
-    // If voiceId is not set, try to set it to the default voice
-    if (!updatedParameters.voiceId) {
-      const defaultVoiceOption = voices.find(v => v.id === 'default_voice');
-      if (defaultVoiceOption) {
-        updatedParameters.voiceId = defaultVoiceOption.id;
-      }
-    }
+    // If voiceId is not set, try to set it to the default voice
+    if (!updatedParameters.voiceId) {
+      const defaultVoiceOption = voices.find(v => v.id === 'default_voice');
+      if (defaultVoiceOption) {
+        updatedParameters.voiceId = defaultVoiceOption.id;
+      }
+    }
 
-    setParameters(updatedParameters);
-    setError(null);
-    setEditingField(null);
-    // setActiveTab('editor'); // Optional: reset to editor tab when persona changes
-  }, [initialPersona, voices]);
+    setParameters(updatedParameters);
+    setError(null);
+    setEditingField(null);
+    // setActiveTab('editor'); // Optional: reset to editor tab when persona changes
+  }, [initialPersona, voices]);
 
-  const handleEditField = (field: keyof PersonaState, label: string) => {
-    setEditingField({ field, label });
-  };
+  const handleEditField = (field: keyof PersonaState, label: string) => {
+    setEditingField({ field, label });
+  };
 
-  const handleSaveField = (field: keyof PersonaState, value: string) => {
-    setParameters(prev => ({ ...prev, [field]: value }));
-    setEditingField(null);
-  };
+  const handleSaveField = (field: keyof PersonaState, value: string) => {
+    setParameters(prev => ({ ...prev, [field]: value }));
+    setEditingField(null);
+  };
 
-  const handleParameterChange = (field: keyof PersonaState, value: string) => {
-    setParameters(prev => ({ ...prev, [field]: value }));
-  };
+  const handleParameterChange = (field: keyof PersonaState, value: string) => {
+    setParameters(prev => ({ ...prev, [field]: value }));
+  };
 
-  // AIからのエラーメッセージをユーザー向けのメッセージに変換するヘルパー関数
-  const getErrorMessage = (error: any) => {
-      if (error.message?.includes("The model is overloaded")) {
-          return "AIモデルが混み合っています。しばらくしてから再度お試しください。";
-      }
-      if (error.message?.includes("Quota Exceeded")) {
-          return "APIの利用上限に達しました。別のAPIキーを設定するか、明日以降に再度お試しください。";
-      }
-      if (error.message?.includes("No API_KEY")) {
-          return "APIキーが設定されていません。プロジェクトの.envファイルを確認してください。";
-      }
-      return error.message || "予期せぬエラーが発生しました。";
-  }
+  // AIからのエラーメッセージをユーザー向けのメッセージに変換するヘルパー関数
+  const getErrorMessage = (error: any) => {
+      if (error.message?.includes("The model is overloaded")) {
+          return "AIモデルが混み合っています。しばらくしてから再度お試しください。";
+      }
+      if (error.message?.includes("Quota Exceeded")) {
+          return "APIの利用上限に達しました。別のAPIキーを設定するか、明日以降に再度お試しください。";
+      }
+      if (error.message?.includes("No API_KEY")) {
+          return "APIキーが設定されていません。プロジェクトの.envファイルを確認してください。";
+      }
+      return error.message || "予期せぬエラーが発生しました。";
+  }
 
-  const handleGenerateSummary = useCallback(async (paramsToSummarize: PersonaState, message = "AI is generating a summary...") => {
-    if(!paramsToSummarize.name) {
-      setError("Please provide a name before generating a summary.");
-      return;
-    }
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage(message);
-    try {
-      const generatedSummary = await geminiService.generateSummaryFromParams({ ...paramsToSummarize, summary: '' });
-      setParameters(prev => ({...prev, summary: generatedSummary}));
-    } catch (err) {
-      setError(getErrorMessage(err instanceof Error ? err : "Failed to generate summary."));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const handleGenerateSummary = useCallback(async (paramsToSummarize: PersonaState, message = "AI is generating a summary...") => {
+    if(!paramsToSummarize.name) {
+      setError("Please provide a name before generating a summary.");
+      return;
+    }
+    setError(null);
+    setIsLoading(true);
+    setLoadingMessage(message);
+    try {
+      const generatedSummary = await geminiService.generateSummaryFromParams({ ...paramsToSummarize, summary: '' });
+      setParameters(prev => ({...prev, summary: generatedSummary}));
+    } catch (err) {
+      setError(getErrorMessage(err instanceof Error ? err : "Failed to generate summary."));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const handleSyncFromSummary = async () => {
-    if (!parameters.summary.trim()) { setError("Summary is empty."); return; }
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage("AI is updating parameters from summary...");
-    try {
-      const extractedParams = await geminiService.updateParamsFromSummary(parameters.summary);
-      setParameters(prev => ({ ...prev, ...extractedParams }));
-    } catch (err) {
-      setError(getErrorMessage(err instanceof Error ? err : "Failed to update parameters from summary."));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleAnalyzeMbti = async () => {
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage("AIが性格を分析しています...");
-    try {
-        const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
-        setParameters(prev => ({ ...prev, mbtiProfile }));
-    } catch (err) {
-        setError(getErrorMessage(err instanceof Error ? err : "Failed to analyze MBTI profile."));
-    } finally {
-        setIsLoading(false);
-    }
-  };
+  const handleSyncFromSummary = async () => {
+    if (!parameters.summary.trim()) { setError("Summary is empty."); return; }
+    setError(null);
+    setIsLoading(true);
+    setLoadingMessage("AI is updating parameters from summary...");
+    try {
+      const extractedParams = await geminiService.updateParamsFromSummary(parameters.summary);
+      setParameters(prev => ({ ...prev, ...extractedParams }));
+    } catch (err) {
+      setError(getErrorMessage(err instanceof Error ? err : "Failed to update parameters from summary."));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleAnalyzeMbti = async () => {
+    setError(null);
+    setIsLoading(true);
+    setLoadingMessage("AIが性格を分析しています...");
+    try {
+        const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
+        setParameters(prev => ({ ...prev, mbtiProfile }));
+    } catch (err) {
+        setError(getErrorMessage(err instanceof Error ? err : "Failed to analyze MBTI profile."));
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
-  const handleRegenerateFromTopic = useCallback(async (topic: string) => {
-    if (!topic.trim()) {
-        setError("トピックを入力してください。");
-        return;
-    }
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage("AIがウェブを検索しています...");
-    try {
-        const { personaState, sources } = await geminiService.createPersonaFromWeb(topic);
-        setLoadingMessage("AIがサマリーを生成しています...");
-        const summary = await geminiService.generateSummaryFromParams({ ...parameters, ...personaState, name: personaState.name || parameters.name });
-        setParameters(prev => ({ ...prev, ...personaState, summary, sources }));
-    } catch (err) {
-        setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred."));
-    } finally {
-        setIsLoading(false);
-    }
-  }, [parameters]);
-  
-  const handleSave = async () => {
-    if (!parameters.name) { setError("Persona name is required."); return; }
-    setIsLoading(true);
-    setLoadingMessage("Saving and analyzing changes...");
-    try {
-      await onSave(parameters);
-    } catch (err) {
-        setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred during save."));
-    } finally {
-        setIsLoading(false);
-    }
-  }
+  const handleRegenerateFromTopic = useCallback(async (topic: string) => {
+    if (!topic.trim()) {
+        setError("トピックを入力してください。");
+        return;
+    }
+    setError(null);
+    setIsLoading(true);
+    setLoadingMessage("AIがウェブを検索しています...");
+    try {
+        const { personaState, sources } = await geminiService.createPersonaFromWeb(topic);
+        setLoadingMessage("AIがサマリーを生成しています...");
+        const summary = await geminiService.generateSummaryFromParams({ ...parameters, ...personaState, name: personaState.name || parameters.name });
+        setParameters(prev => ({ ...prev, ...personaState, summary, sources }));
+    } catch (err) {
+        setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred."));
+    } finally {
+        setIsLoading(false);
+    }
+  }, [parameters]);
+  
+  const handleSave = async () => {
+    if (!parameters.name) { setError("Persona name is required."); return; }
+    setIsLoading(true);
+    setLoadingMessage("Saving and analyzing changes...");
+    try {
+      await onSave(parameters);
+    } catch (err) {
+        setError(getErrorMessage(err instanceof Error ? err : "An unknown error occurred during save."));
+    } finally {
+        setIsLoading(false);
+    }
+  }
 
-  const handleRevert = useCallback((historyEntry: PersonaHistoryEntry) => {
-    setParameters(prev => ({ ...prev, ...historyEntry.state }));
-  }, []);
-  
-  const handlePersonaChange = (newPersona: PersonaState) => {
-      setParameters(prev => ({ ...prev, ...newPersona }));
-  };
+  const handleRevert = useCallback((historyEntry: PersonaHistoryEntry) => {
+    setParameters(prev => ({ ...prev, ...historyEntry.state }));
+  }, []);
+  
+  const handlePersonaChange = (newPersona: PersonaState) => {
+      setParameters(prev => ({ ...prev, ...newPersona }));
+  };
 
-  return (
-    <div className="flex flex-col">
-       {isLoading && <Loader message={loadingMessage} />}
-       
-       <header className="sticky top-0 z-20 bg-gray-900 flex items-center gap-4 pb-6">
-            <button onClick={onBack} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
-                <BackIcon />
-            </button>
-            <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0">{parameters.name}</h2>
-            {/* Tabs for mobile view, hidden on large screens */}
-            <div className="flex flex-wrap gap-1 p-1 bg-gray-800 rounded-lg ml-4 lg:hidden">
-                <TabButton isActive={activeTab === 'editor'} onClick={() => setActiveTab('editor')}>Editor</TabButton>
-                <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Tools</TabButton>
-                <TabButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')}>Test Chat</TabButton>
-            </div>
-        </header>
-        
-        <main className="flex-grow min-h-0 pb-24">
-          {error && <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md mb-4 text-sm">{error}</div>}
-          
-           {/* Mobile Tab View */}
-           <div className="lg:hidden">
-              {activeTab === 'editor' && (
-                  <ParametersPanel 
-                      parameters={parameters} 
-                      onEditField={handleEditField}
-                      voices={voices}
-                      onParameterChange={handleParameterChange}
-                      onAddVoice={onAddVoice}
-                  />
-              )}
-              {activeTab === 'ai' && (
-                  <AiToolsPanel
-                      parameters={parameters}
-                      initialPersona={initialPersona}
-                      isLoading={isLoading}
-                      onEditField={handleEditField}
-                      onAnalyzeMbti={handleAnalyzeMbti}
-                      onRegenerate={handleRegenerateFromTopic}
-                      onRevert={handleRevert}
-                  />
-              )}
-              {activeTab === 'chat' && (
-                  <TestChatPanel persona={parameters} onPersonaChange={handlePersonaChange} />
-              )}
-           </div>
+  return (
+    <div className="flex flex-col">
+       {isLoading && <Loader message={loadingMessage} />}
+       
+       <header className="sticky top-0 z-20 bg-gray-900 flex items-center gap-4 pb-6">
+            <button onClick={onBack} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
+                <BackIcon />
+            </button>
+            <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0 max-w-[12ch] truncate">{parameters.name}</h2>
+            {/* Tabs for mobile view, hidden on large screens */}
+            <div className="flex flex-wrap gap-1 p-1 bg-gray-800 rounded-lg ml-4 lg:hidden">
+                <TabButton isActive={activeTab === 'editor'} onClick={() => setActiveTab('editor')}>Editor</TabButton>
+                <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Tools</TabButton>
+                <TabButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')}>Test Chat</TabButton>
+            </div>
+        </header>
+        
+        <main className="flex-grow min-h-0 pb-24">
+          {error && <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md mb-4 text-sm\">{error}</div>}
+          
+           {/* Mobile Tab View */}
+           <div className="lg:hidden">
+              {activeTab === 'editor' && (
+                   <ParametersPanel 
+                        parameters={parameters} 
+                        onEditField={handleEditField}
+                        voices={voices}
+                        onParameterChange={handleParameterChange}
+                        onAddVoice={onAddVoice}
+                   />
+              )}
+              {activeTab === 'ai' && (
+                   <AiToolsPanel
+                        parameters={parameters}
+                        initialPersona={initialPersona}
+                        isLoading={isLoading}
+                        onEditField={handleEditField}
+                        onAnalyzeMbti={handleAnalyzeMbti}
+                        onRegenerate={handleRegenerateFromTopic}
+                        onRevert={handleRevert}
+                   />
+              )}
+              {activeTab === 'chat' && (
+                   <TestChatPanel persona={parameters} onPersonaChange={handlePersonaChange} />
+              )}
+           </div>
 
-           {/* Desktop 3-Column View */}
-           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
-              {/* Column 1: Editor */}
-              <div>
-                 <ParametersPanel 
-                      parameters={parameters} 
-                      onEditField={handleEditField}
-                      voices={voices}
-                      onParameterChange={handleParameterChange}
-                      onAddVoice={onAddVoice}
-                  />
-              </div>
+           {/* Desktop 3-Column View */}
+           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
+              {/* Column 1: Editor */}
+              <div>
+                   <ParametersPanel 
+                        parameters={parameters} 
+                        onEditField={handleEditField}
+                        voices={voices}
+                        onParameterChange={handleParameterChange}
+                        onAddVoice={onAddVoice}
+                   />
+              </div>
 
-              {/* Column 2: AI Tools */}
-              <div>
-                  <AiToolsPanel
-                      parameters={parameters}
-                      initialPersona={initialPersona}
-                      isLoading={isLoading}
-                      onEditField={handleEditField}
-                      onAnalyzeMbti={handleAnalyzeMbti}
-                      onRegenerate={handleRegenerateFromTopic}
-                      onRevert={handleRevert}
-                  />
-              </div>
+              {/* Column 2: AI Tools */}
+              <div>
+                   <AiToolsPanel
+                        parameters={parameters}
+                        initialPersona={initialPersona}
+                        isLoading={isLoading}
+                        onEditField={handleEditField}
+                        onAnalyzeMbti={handleAnalyzeMbti}
+                        onRegenerate={handleRegenerateFromTopic}
+                        onRevert={handleRevert}
+                   />
+              </div>
 
-              {/* Column 3: Test Chat */}
-              <div>
-                  <TestChatPanel persona={parameters} onPersonaChange={handlePersonaChange} />
-              </div>
-           </div>
-        </main>
-        
-        <footer className="sticky bottom-0 z-10 flex-shrink-0 flex justify-end p-4 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700">
-            <button onClick={onBack} className="px-4 py-2 text-gray-300 hover:text-white mr-2">Cancel</button>
-            <button onClick={handleSave} disabled={isLoading || !parameters.name} className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-md shadow-lg disabled:bg-gray-600 disabled:cursor-not-allowed">
-                <SaveIcon />
-                Save Persona
-            </button>
-        </footer>
-       <ParameterDetailModal
-            isOpen={!!editingField}
-            onClose={() => setEditingField(null)}
-            onSave={handleSaveField}
-            // FIX: Ensure value passed to ParameterDetailModal is a string. The `parameters` object can
-            // contain non-string values (like `sources` or `mbtiProfile`), but the modal is only 
-            // designed for editing strings. This check prevents a type error.
-            fieldData={editingField ? { ...editingField, value: typeof parameters[editingField.field] === 'string' ? parameters[editingField.field] as string : '' } : null}
-        >
-            {editingField?.field === 'summary' && (
-                 <div className="flex flex-col sm:flex-row gap-2 mt-4">
-                  <button onClick={async () => { await handleGenerateSummary(parameters); setEditingField(null); }} disabled={isLoading || !parameters.name} className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm bg-indigo-600/80 hover:bg-indigo-600 disabled:bg-indigo-900/50 disabled:cursor-not-allowed transition-colors rounded-md"><MagicWandIcon /> Refresh Summary</button>
-                  <button onClick={async () => { await handleSyncFromSummary(); setEditingField(null); }} disabled={isLoading || !parameters.summary} className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700/50 disabled:cursor-not-allowed transition-colors rounded-md"><TextIcon /> Sync from Summary</button>
-                 </div>
-            )}
-       </ParameterDetailModal>
-    </div>
-  );
+              {/* Column 3: Test Chat */}
+              <div>
+                   <TestChatPanel persona={parameters} onPersonaChange={handlePersonaChange} />
+              </div>
+           </div>
+        </main>
+        
+        <footer className="sticky bottom-0 z-10 flex-shrink-0 flex justify-end p-4 bg-gray-900/80 backdrop-blur-sm border-t border-gray-700">
+            <button onClick={onBack} className="px-4 py-2 text-gray-300 hover:text-white mr-2">Cancel</button>
+            <button onClick={handleSave} disabled={isLoading || !parameters.name} className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-md shadow-lg disabled:bg-gray-600 disabled:cursor-not-allowed">
+                <SaveIcon />
+                Save Persona
+            </button>
+        </footer>
+       <ParameterDetailModal
+            isOpen={!!editingField}
+            onClose={() => setEditingField(null)}
+            onSave={handleSaveField}
+            // FIX: Ensure value passed to ParameterDetailModal is a string. The `parameters` object can
+            // contain non-string values (like `sources` or `mbtiProfile`), but the modal is only 
+            // designed for editing strings. This check prevents a type error.
+            fieldData={editingField ? { ...editingField, value: typeof parameters[editingField.field] === 'string' ? parameters[editingField.field] as string : '' } : null}
+        >
+            {editingField?.field === 'summary' && (
+                 <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                  <button onClick={async () => { await handleGenerateSummary(parameters); setEditingField(null); }} disabled={isLoading || !parameters.name} className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm bg-indigo-600/80 hover:bg-indigo-600 disabled:bg-indigo-900/50 disabled:cursor-not-allowed transition-colors rounded-md"><MagicWandIcon /> Refresh Summary</button>
+                  <button onClick={async () => { await handleSyncFromSummary(); setEditingField(null); }} disabled={isLoading || !parameters.summary} className="flex items-center justify-center gap-2 w-full px-3 py-1.5 text-sm bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700/50 disabled:cursor-not-allowed transition-colors rounded-md"><TextIcon /> Sync from Summary</button>
+                 </div>
+            )}
+       </ParameterDetailModal>
+    </div>
+  );
 };
