@@ -65,3 +65,14 @@ export async function createIssueHandler(req: any, res: any) {
     res.status(500).json({ error: 'Internal Server Error', message: 'Failed to create issue.' });
   }
 }
+
+export default async function handler(req: any, res: any) {
+  if (req.method === 'GET') {
+    return getIssuesHandler(req, res);
+  } else if (req.method === 'POST') {
+    return createIssueHandler(req, res);
+  } else {
+    res.setHeader('Allow', ['GET', 'POST']);
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+}
