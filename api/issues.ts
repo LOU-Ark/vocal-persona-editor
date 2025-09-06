@@ -1,4 +1,4 @@
-import { Blob } from '@vercel/blob';
+import Blob from '@vercel/blob';
 import { Issue } from '../types';
 
 const BLOB_KEY = 'issues_data'; // Vercel Blobに保存するデータのキー
