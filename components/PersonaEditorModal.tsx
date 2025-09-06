@@ -552,18 +552,7 @@ const TestChatPanel: React.FC<{ persona: PersonaState, onPersonaChange: (newPers
 };
 
 
-const TabButton: React.FC<{ onClick: () => void; isActive: boolean; children: React.ReactNode }> = ({ onClick, isActive, children }) => (
-  <button
-    onClick={onClick}
-    className={`whitespace-nowrap px-3 py-1 sm:px-4 sm:py-1.5 text-sm font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 ${
-      isActive
-        ? 'bg-indigo-600 text-white'
-        : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600'
-    }`}
-  >
-    {children}
-  </button>
-);
+
 
 
 export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSave, initialPersona, voices, onAddVoice }) => {
@@ -712,24 +701,37 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
     <div className="flex flex-col">
        {isLoading && <Loader message={loadingMessage} />}
        
-       <header className="sticky top-0 z-20 bg-gray-900 flex items-center gap-4 pb-6">
+       <header className="sticky top-0 z-20 bg-gray-900/95 backdrop-blur-sm flex items-center gap-4 p-4">
             <button onClick={onBack} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
                 <BackIcon />
             </button>
-            <h2 className="text-2xl font-bold text-indigo-400 flex-shrink-0 max-w-[12ch] truncate">{parameters.name}</h2>
-            {/* Tabs for mobile view, hidden on large screens */}
-            <div className="flex flex-wrap gap-1 p-1 bg-gray-800 rounded-lg ml-4 lg:hidden">
-                <TabButton isActive={activeTab === 'editor'} onClick={() => setActiveTab('editor')}>Editor</TabButton>
-                <TabButton isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')}>AI Tools</TabButton>
-                <TabButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')}>Test Chat</TabButton>
-            </div>
+            <h2 className="text-xl font-bold text-indigo-400 truncate">{parameters.name}</h2>
         </header>
         
         <main className="flex-grow min-h-0 pb-24">
-          {error && <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md mb-4 text-sm\">{error}</div>}
+          {error && <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md my-4 text-sm">{error}</div>}
           
+           {/* Tab navigation for mobile */}
+           <div className="lg:hidden sticky top-[68px] z-10 bg-gray-900/95 backdrop-blur-sm">
+             <div className="flex space-x-4 border-b border-gray-700 px-4">
+                {(['editor', 'ai', 'chat'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    className={`py-3 px-2 -mb-px border-b-2 font-semibold text-sm capitalize transition-colors ${
+                        activeTab === tab
+                            ? 'border-indigo-500 text-indigo-400'
+                            : 'border-transparent text-gray-400 hover:text-indigo-400'
+                    }`}
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {tab === 'ai' ? 'AI Tools' : tab === 'chat' ? 'Test Chat' : tab}
+                  </button>
+                ))}
+             </div>
+           </div>
+
            {/* Mobile Tab View */}
-           <div className="lg:hidden">
+           <div className="lg:hidden p-4">
               {activeTab === 'editor' && (
                    <ParametersPanel 
                         parameters={parameters} 
@@ -756,7 +758,7 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
            </div>
 
            {/* Desktop 3-Column View */}
-           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6">
+           <div className="hidden lg:grid lg:grid-cols-3 lg:gap-6 p-4">
               {/* Column 1: Editor */}
               <div>
                    <ParametersPanel 
