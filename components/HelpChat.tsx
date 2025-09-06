@@ -85,7 +85,7 @@ export const HelpChat: React.FC<HelpChatProps> = ({ onClose, persona, allPersona
 
     return (
         <div className="fixed bottom-24 right-6 z-50" ref={wrapperRef}>
-            <div className="bg-gray-800 rounded-lg shadow-2xl w-[400px] h-[60vh] flex flex-col relative">
+            <div className="bg-gray-800 rounded-lg shadow-2xl w-[calc(100vw-2rem)] max-w-md h-[60vh] flex flex-col relative">
                 <header className="flex justify-between items-center p-4 border-b border-gray-700">
                     <h2 className="text-xl font-bold text-white">使い方ガイド</h2>
                     <div className="flex items-center">
