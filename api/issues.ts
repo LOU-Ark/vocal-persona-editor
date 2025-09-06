@@ -22,7 +22,8 @@ async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
 async function writeDb(data: { personas: any[]; issues: Issue[] }): Promise<void> {
   await put('issues_data', JSON.stringify(data, null, 2), {
     contentType: 'application/json',
-    access: 'public', // Add access: 'public' here
+    access: 'public',
+    allowOverwrite: true, // Add allowOverwrite: true here
   });
 }
 
