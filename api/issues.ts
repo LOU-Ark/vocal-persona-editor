@@ -1,13 +1,12 @@
-import { put } from '@vercel/blob'; // put is a named export
+import { head, put } from '@vercel/blob'; // Import head and put
 import { Issue } from '../types';
 
 async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
   try {
-    // Dynamically import 'get'
-    const { get } = await import('@vercel/blob'); // Dynamic import for 'get'
-    const blob = await get('issues_data');
-    if (blob) {
-      const text = await blob.text();
+    const blobInfo = await head('issues_data'); // Use head to get blob info
+    if (blobInfo) {
+      const response = await fetch(blobInfo.url); // Fetch content from the URL
+      const text = await response.text();
       return JSON.parse(text);
     }
     // If blob is empty or not found, return a default structure
