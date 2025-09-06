@@ -1,24 +1,29 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import { Blob } from '@vercel/blob';
 import { Issue } from '../types';
 
-const dbPath = path.resolve(process.cwd(), 'api', 'db.json');
+const BLOB_KEY = 'issues_data'; // Vercel Blobに保存するデータのキー
 
 async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
   try {
-    const data = await fs.readFile(dbPath, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    // If file doesn't exist or is empty, return a default structure
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return { personas: [], issues: [] };
+    const blob = await Blob.get(BLOB_KEY);
+    if (blob) {
+      const text = await blob.text();
+      return JSON.parse(text);
     }
-    throw error;
+    // If blob is empty or not found, return a default structure
+    return { personas: [], issues: [] };
+  } catch (error) {
+    console.error('Failed to read from Vercel Blob:', error);
+    // In case of an error reading from Blob, return a default structure
+    // or re-throw if you want to propagate the error.
+    return { personas: [], issues: [] };
   }
 }
 
-async function writeDb(data: any): Promise<void> {
-  await fs.writeFile(dbPath, JSON.stringify(data, null, 2), 'utf-8');
+async function writeDb(data: { personas: any[]; issues: Issue[] }): Promise<void> {
+  await Blob.put(BLOB_KEY, JSON.stringify(data, null, 2), {
+    contentType: 'application/json',
+  });
 }
 
 export async function getIssuesHandler(req: any, res: any) {
