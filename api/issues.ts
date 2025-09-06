@@ -3,9 +3,14 @@ import { Issue } from '../types';
 
 const BLOB_KEY = 'issues_data'; // Vercel Blobに保存するデータのキー
 
+import { get, put } from '@vercel/blob';
+import { Issue } from '../types';
+
+const BLOB_KEY = 'issues_data'; // Vercel Blobに保存するデータのキー
+
 async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
   try {
-    const blob = await VercelBlob.get(BLOB_KEY);
+    const blob = await get(BLOB_KEY);
     if (blob) {
       const text = await blob.text();
       return JSON.parse(text);
@@ -21,10 +26,12 @@ async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
 }
 
 async function writeDb(data: { personas: any[]; issues: Issue[] }): Promise<void> {
-  await VercelBlob.put(BLOB_KEY, JSON.stringify(data, null, 2), {
+  await put(BLOB_KEY, JSON.stringify(data, null, 2), {
     contentType: 'application/json',
+    access: 'public', // Add access: 'public' here
   });
 }
+
 
 export async function getIssuesHandler(req: any, res: any) {
   if (req.method !== 'GET') {
