@@ -1,9 +1,10 @@
-import { get, put } from '@vercel/blob';
+import { put } from '@vercel/blob'; // put is a named export
+import * as VercelBlob from '@vercel/blob'; // Import everything else as a namespace
 import { Issue } from '../types';
 
 async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
   try {
-    const blob = await get('issues_data');
+    const blob = await VercelBlob.get('issues_data'); // Use VercelBlob.get
     if (blob) {
       const text = await blob.text();
       return JSON.parse(text);
