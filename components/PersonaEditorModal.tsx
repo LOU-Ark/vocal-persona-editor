@@ -280,42 +280,91 @@ interface ParametersPanelProps {
   onAddVoice: () => void;
 }
 
-const ParametersPanel: React.FC<ParametersPanelProps> = ({ parameters, onEditField, voices, onParameterChange, onAddVoice }) => (
-    <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg">
-        <h3 className="text-lg font-semibold text-gray-300">Parameters</h3>
-        <div className="text-sm text-gray-500 pb-2">
-            <p>ペルソナの基本的なパラメータをここで編集します。</p>
-            <p>各項目をタップして詳細を編集してください。</p>
-        </div>
-        {Object.entries(parameterLabels).map(([key, label]) => (
-            <TappableParameter
-                key={key}
-                label={label}
-                value={parameters[key as keyof typeof parameterLabels]}
-                onClick={() => onEditField(key as keyof PersonaState, label)}
-            />
-        ))}
-         <div className="bg-gray-800/60 p-3 rounded-lg">
-            <label htmlFor="voice-model-select" className="block text-sm font-medium text-gray-400 mb-1">Voice Model</label>
-            <select
-                id="voice-model-select"
-                value={parameters.voiceId || ''}
-                onChange={(e) => {
-                    if (e.target.value === 'add_new_voice') {
-                        onAddVoice();
-                    } else {
-                        onParameterChange('voiceId', e.target.value);
-                    }
-                }}
-                className="w-full bg-gray-700 text-white border border-gray-600 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-                {voices.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}
-                <option disabled></option>
-                <option value="add_new_voice" style={{ fontWeight: 500, color: '#818cf8' }}>+ Add New Voice</option>
-            </select>
-        </div>
-    </div>
-);
+const ParametersPanel: React.FC<ParametersPanelProps> = ({ parameters, onEditField, voices, onParameterChange, onAddVoice }) => {
+  const handleDownload = (format: 'txt' | 'json') => {
+    const personaState = parameters;
+    let content = '';
+    let filename = '';
+    let mimeType = '';
+
+    if (format === 'txt') {
+      content = `You are a character with the following traits. Respond as this character in Japanese.
+- Name: ${personaState.name}
+- Role: ${personaState.role}
+- Tone: ${personaState.tone}
+- Personality: ${personaState.personality}
+- Worldview: ${personaState.worldview}
+- Experience: ${personaState.experience}
+- Other: ${personaState.other}
+- Summary: ${personaState.summary}`;
+      filename = `${(personaState.name || 'persona').replace(/\s+/g, '_')}_prompt.txt`;
+      mimeType = 'text/plain;charset=utf-8';
+    } else {
+      content = JSON.stringify(personaState, null, 2);
+      filename = `${(personaState.name || 'persona').replace(/\s+/g, '_')}.json`;
+      mimeType = 'application/json';
+    }
+
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg">
+      <h3 className="text-lg font-semibold text-gray-300">Parameters</h3>
+      <div className="text-sm text-gray-500 pb-2">
+        <p>ペルソナの基本的なパラメータをここで編集します。</p>
+        <p>各項目をタップして詳細を編集してください。</p>
+      </div>
+      {Object.entries(parameterLabels).map(([key, label]) => (
+        <TappableParameter
+          key={key}
+          label={label}
+          value={parameters[key as keyof typeof parameterLabels]}
+          onClick={() => onEditField(key as keyof PersonaState, label)}
+        />
+      ))}
+      <div className="bg-gray-800/60 p-3 rounded-lg">
+        <label htmlFor="voice-model-select" className="block text-sm font-medium text-gray-400 mb-1">Voice Model</label>
+        <select
+          id="voice-model-select"
+          value={parameters.voiceId || ''}
+          onChange={(e) => {
+            if (e.target.value === 'add_new_voice') {
+              onAddVoice();
+            } else {
+              onParameterChange('voiceId', e.target.value);
+            }
+          }}
+          className="w-full bg-gray-700 text-white border border-gray-600 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          {voices.map(v => (<option key={v.id} value={v.id}>{v.name}</option>))}
+          <option disabled></option>
+          <option value="add_new_voice" style={{ fontWeight: 500, color: '#818cf8' }}>+ Add New Voice</option>
+        </select>
+      </div>
+      {/* Download Section */}
+      <div className="text-sm text-gray-400 pt-4 mt-4 border-t border-gray-700/50">
+        <p className="mb-2">設定したペルソナはこちらからダウンロードできます:</p>
+        <div className="flex gap-2">
+          <button onClick={() => handleDownload('txt')} className="flex items-center justify-center gap-2 flex-1 text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors">
+            プロンプト (.txt)
+          </button>
+          <button onClick={() => handleDownload('json')} className="flex items-center justify-center gap-2 flex-1 text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors">
+            設定ファイル (.json)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const SummaryPanel: React.FC<{
   parameters: PersonaState;
