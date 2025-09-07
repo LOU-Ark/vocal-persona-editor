@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PersonaState, ChatMessage, Persona } from '../types'; // Import Persona
 import * as geminiService from '../services/geminiService';
 import { SendIcon, CloseIcon, EditIcon } from './icons';
+import { FaRegEnvelope } from 'react-icons/fa';
 
 interface HelpChatProps {
     onClose: () => void;
@@ -101,7 +102,7 @@ export const HelpChat: React.FC<HelpChatProps> = ({ onClose, persona, allPersona
                             ))}
                         </select>
                         <button onClick={onReportIssueClick} className="text-gray-400 hover:text-white mr-2 p-2 rounded-full hover:bg-gray-700 transition-colors" title="フィードバックを送信">
-                            <SendIcon />
+                            <FaRegEnvelope />
                         </button>
                         <button onClick={onClose} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors"><CloseIcon/></button>
                     </div>
