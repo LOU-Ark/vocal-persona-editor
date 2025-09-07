@@ -510,9 +510,9 @@ const TestChatPanel: React.FC<{ persona: PersonaState, onPersonaChange: (newPers
     const chatBoxRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const initialMessage = `こんにちは、${persona.name}です。何でも聞いてください。`;
+        const initialMessage = `こんにちは、${persona.name}です。ここではチャットしながらパラメータの調整を行います。例えば口調を変えたい場合は「もっと丁寧な口調で話して」と言ってください。`;
         const truncatedMessage = initialMessage.length > 50
-            ? initialMessage.substring(0, 50) + '...'
+            ? initialMessage.substring(0, 80) + '...'
             : initialMessage;
         setHistory([{ role: 'model', parts: [{ text: truncatedMessage }] }]);
     }, [persona.name]);
