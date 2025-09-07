@@ -313,11 +313,50 @@ async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProf
     const personaData = { ...personaState };
     delete personaData.mbtiProfile;
 
-    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成しなさい。応答は必ずJSON形式で、以下のスキーマに従ってください。
+    // プロンプトをより具体的に修正し、期待するJSON形式を直接例示する
+    const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成しなさい。
+    出力は必ず以下のJSONスキーマに従ってください。前置きや説明文は一切含めないで、JSONオブジェクトのみを返してください。
+    
+    \`\`\`json
+    {
+      "type": "4文字のMBTIタイプコード（例: 'INFJ'）",
+      "typeName": "タイプの説明的な名前（例: '提唱者'）",
+      "description": "キャラクターの視点から書かれた、この性格タイプに関する1〜2文の簡潔な説明。",
+      "scores": {
+        "mind": "内向性(0)〜外向性(100)のスコア",
+        "energy": "感覚(0)〜直観(100)のスコア",
+        "nature": "思考(0)〜感情(100)のスコア",
+        "tactics": "判断(0)〜知覚(100)のスコア"
+      }
+    }
+    \`\`\`
 
-キャラクター設定:
-${JSON.stringify(personaData, null, 2)}`;
-    return await generateWithSchema<MbtiProfile>(prompt, mbtiProfileSchema);
+    キャラクター設定:
+    ${JSON.stringify(personaData, null, 2)}`;
+
+    // AIのレスポンスを直接パースし、型チェックを行う
+    try {
+        const result = await generateWithSchema<MbtiProfile>(prompt, mbtiProfileSchema);
+        
+        // 厳密な検証を追加
+        if (
+            !result || 
+            !result.scores || 
+            typeof result.scores.mind !== 'number' || 
+            typeof result.scores.energy !== 'number' || 
+            typeof result.scores.nature !== 'number' || 
+            typeof result.scores.tactics !== 'number'
+        ) {
+            throw new Error("APIから無効なMBTIデータが返されました。");
+        }
+
+        return result;
+
+    } catch (error) {
+        console.error("Failed to generate MbtiProfile with schema:", error);
+        // エラーが発生した場合、適切なメッセージと共にエラーを再スロー
+        throw new Error("MBTIプロファイルの生成に失敗しました。AIからの応答形式が不正です。");
+    }
 }
 
 async function generateRefinementWelcomeMessage(personaState: PersonaState): Promise<string> {

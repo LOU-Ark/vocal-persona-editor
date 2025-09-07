@@ -253,18 +253,23 @@ const App: React.FC = () => {
                   Interactive Persona Editor
                 </h1>
                 <p className="text-gray-400 mt-1">AI-powered character creation studio.</p>
+                <p className="text-gray-400 mt-1">ペルソナカードをタップして会話を始めましょう！</p>
               </div>
             ) : activeView === 'chat' ? (
               <div className="flex items-center gap-4">
                 <button onClick={handleBackToList} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
                   <BackIcon />
                 </button>
-                <h1 
-                  className="text-2xl font-bold text-white cursor-pointer hover:text-indigo-400 transition-colors"
-                  onClick={() => editingPersona && handleOpenEditor(editingPersona)}
-                >
-                  {activePersonaForHeader?.name || 'Chat'}
-                </h1>
+                <div> {/* 新しいdivでh1とpをまとめる */}
+                  <h1 
+                    className="text-2xl font-bold text-white cursor-pointer hover:text-indigo-400 transition-colors"
+                    onClick={() => editingPersona && handleOpenEditor(editingPersona)}
+                  >
+                    {activePersonaForHeader?.name || 'Chat'}
+                  </h1>
+                  {/* ここに新しいpタグを追加 */}
+                  <p className="text-sm text-gray-400 mt-1">名前をタップするとペルソナを編集できます。</p>
+                </div>
               </div>
             ) : null}
             

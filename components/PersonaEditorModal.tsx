@@ -704,17 +704,23 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
   };
   
   const handleAnalyzeMbti = async () => {
-    setError(null);
-    setIsLoading(true);
-    setLoadingMessage("AIが性格を分析しています...");
-    try {
-        const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
-        setParameters(prev => ({ ...prev, mbtiProfile }));
-    } catch (err) {
-        setError(getErrorMessage(err instanceof Error ? err : "Failed to analyze MBTI profile."));
-    } finally {
-        setIsLoading(false);
-    }
+  setError(null);
+  setIsLoading(true);
+  setLoadingMessage("AIが性格を分析しています...");
+  try {
+      const mbtiProfile = await geminiService.generateMbtiProfile(parameters);
+  
+      // FIX: APIレスポンスの検証を追加
+      if (!mbtiProfile || !mbtiProfile.scores || typeof mbtiProfile.scores.mind !== 'number') {
+      throw new Error("APIから無効なMBTIデータが返されました。");
+      }
+  
+      setParameters(prev => ({ ...prev, mbtiProfile }));
+  } catch (err) {
+      setError(getErrorMessage(err instanceof Error ? err : "Failed to analyze MBTI profile."));
+  } finally {
+      setIsLoading(false);
+  }
   };
 
   const handleRegenerateFromTopic = useCallback(async (topic: string) => {
