@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import TextareaAutosize from 'react-textarea-autosize';
 import { Persona, ChatMessage, Voice } from '../types';
 import * as geminiService from '../services/geminiService';
 import { SendIcon, VolumeUpIcon, MicrophoneIcon } from './icons';
@@ -215,19 +216,53 @@ export const ProductionChat: React.FC<ProductionChatProps> = ({ persona: activeP
                 )}
             </div>
 
-            <div className="flex-shrink-0 p-4 border-t border-gray-700 flex items-center gap-2">
-                <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="メッセージを入力..." className="w-full bg-gray-700/80 rounded-md p-3 text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500" disabled={isLoading} />
-                 <button title="Toggle Voice Input" onClick={handleToggleListen} disabled={!recognition} className={`p-3 transition-colors rounded-md shadow-lg flex items-center justify-center ${isListening ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'} disabled:bg-gray-700/50 disabled:cursor-not-allowed`}>
-                    <MicrophoneIcon />
+            <div className="flex-shrink-0 p-4 border-t border-gray-700">
+              {/* 1行目: テキスト入力 */}
+              <TextareaAutosize
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                placeholder="メッセージを入力..."
+                minRows={1}
+                maxRows={6}
+                className="w-full resize-none rounded-md bg-gray-700/80 p-3 text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={isLoading}
+              />
+
+              {/* 2行目: 操作ボタン群 */}
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  title="Toggle Voice Input"
+                  onClick={handleToggleListen}
+                  disabled={!recognition}
+                  className={`p-3 transition-colors rounded-md shadow-lg flex items-center justify-center
+                    ${isListening ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}
+                    disabled:bg-gray-700/50 disabled:cursor-not-allowed`}
+                >
+                  <MicrophoneIcon />
                 </button>
-                <button onClick={handleSendMessage} disabled={isLoading || !userInput.trim()} className="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800/50 disabled:cursor-not-allowed transition-colors rounded-md shadow-lg flex items-center justify-center"><SendIcon /></button>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isLoading || !userInput.trim()}
+                  className="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800/50 disabled:cursor-not-allowed transition-colors rounded-md shadow-lg flex items-center justify-center"
+                >
+                  <SendIcon />
+                </button>
+                <div className="flex-grow"></div> {/* Spacer */}
                 <div className="flex items-center gap-2 text-gray-400">
-                    <VolumeUpIcon className="w-5 h-5"/>
-                    <label htmlFor="tts-toggle" className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" id="tts-toggle" className="sr-only peer" checked={isTtsEnabled} onChange={() => setIsTtsEnabled(!isTtsEnabled)} />
-                        <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
+                  <VolumeUpIcon className="w-5 h-5" />
+                  <label htmlFor="tts-toggle" className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      id="tts-toggle"
+                      className="sr-only peer"
+                      checked={isTtsEnabled}
+                      onChange={() => setIsTtsEnabled(!isTtsEnabled)}
+                    />
+                    <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
                 </div>
+              </div>
             </div>
         </div>
     );

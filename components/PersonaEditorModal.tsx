@@ -1,4 +1,5 @@
 import React, { useState, useCallback, ChangeEvent, useEffect, useMemo, useRef } from 'react';
+import TextareaAutosize from 'react-textarea-autosize';
 import { Persona, PersonaState, PersonaHistoryEntry, ChatMessage, PersonaCreationChatMessage, MbtiProfile, Voice } from '../types';
 import * as geminiService from '../services/geminiService';
 // Fix: Removed unused 'BackIcon' which is not exported from './icons'.
@@ -543,10 +544,21 @@ const TestChatPanel: React.FC<{ persona: PersonaState, onPersonaChange: (newPers
                     </div>
                 )}
             </div>
-            <div className="flex-shrink-0 p-4 border-t border-gray-700 flex items-center gap-2">
-                <input type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="メッセージを送信..." className="w-full bg-gray-700/80 rounded-md p-3 text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500" disabled={isChatLoading} />
-                <button onClick={handleSendMessage} disabled={isChatLoading || !userInput.trim()} className="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800/50 disabled:cursor-not-allowed transition-colors rounded-md shadow-lg flex items-center justify-center"><SendIcon /></button>
-            </div>
+            <div className="flex-shrink-0 p-4 border-t border-gray-700">
+                  <TextareaAutosize
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                    placeholder="メッセージを送信..."
+                    minRows={1}
+                    maxRows={4}
+                    className="w-full resize-none rounded-md bg-gray-700/80 p-3 text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    disabled={isChatLoading}
+                  />
+                  <div className="flex items-center justify-end mt-2">
+                    <button onClick={handleSendMessage} disabled={isChatLoading || !userInput.trim()} className="p-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-800/50 disabled:cursor-not-allowed transition-colors rounded-md shadow-lg flex items-center justify-center"><SendIcon /></button>
+                  </div>
+                </div>
         </div>
     );
 };
