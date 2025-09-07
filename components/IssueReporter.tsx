@@ -8,18 +8,7 @@ interface IssueReporterProps {
   onClose: () => void;
 }
 
-const TabButton: React.FC<{ onClick: () => void; isActive: boolean; children: React.ReactNode }> = ({ onClick, isActive, children }) => (
-  <button
-    onClick={onClick}
-    className={`whitespace-nowrap px-3 py-1 sm:px-4 sm:py-1.5 text-sm font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-indigo-500 ${
-      isActive
-        ? 'bg-indigo-600 text-white'
-        : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600'
-    }`}
-  >
-    {children}
-  </button>
-);
+
 
 const IssueDetailModal: React.FC<{ issue: Issue; onClose: () => void; }> = ({ issue, onClose }) => {
   return (
@@ -139,15 +128,25 @@ export const IssueReporter: React.FC<IssueReporterProps> = ({ isOpen, onClose })
       <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-[60] p-4" onClick={onClose}>
         <div className="bg-gray-800/90 backdrop-blur-sm border border-gray-700 rounded-lg shadow-2xl w-full max-w-2xl h-[90vh] flex flex-col relative" onClick={(e) => e.stopPropagation()}>
           <header className="flex-shrink-0 flex justify-between items-center p-4 border-b border-gray-700">
-            <div className="flex items-center gap-4">
-              <h2 className="text-xl font-bold text-white">Feedback & Issues</h2>
-              <div className="flex flex-wrap gap-1 p-1 bg-gray-900/50 rounded-lg">
-                <TabButton isActive={activeTab === 'submit'} onClick={() => setActiveTab('submit')}>Submit</TabButton>
-                <TabButton isActive={activeTab === 'list'} onClick={() => setActiveTab('list')}>List</TabButton>
-              </div>
-            </div>
+            <h2 className="text-xl font-bold text-white">Feedback & Issues</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-white"><CloseIcon /></button>
           </header>
+
+          <div className="flex space-x-4 border-b border-gray-700 px-6">
+            {(['submit', 'list'] as const).map((tab) => (
+              <button
+                key={tab}
+                className={`py-3 px-2 -mb-px border-b-2 font-semibold text-sm capitalize transition-colors ${
+                    activeTab === tab
+                        ? 'border-indigo-500 text-indigo-400'
+                        : 'border-transparent text-gray-400 hover:text-indigo-400'
+                }`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
           
           <main className="flex-grow p-6 overflow-y-auto">
             {activeTab === 'submit' && (
