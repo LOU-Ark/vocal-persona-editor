@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Persona, PersonaState, PersonaHistoryEntry, Voice, ChatMessage } from './types';
-import { PersonaEditorScreen, CreatePersonaModal } from './components/PersonaEditorModal';
+import { PersonaEditorScreen, CreatePersonaScreen } from './components/PersonaEditorModal';
 import { PersonaList } from './components/PersonaList';
 import { ProductionChat } from './components/ProductionChat';
 import { BackIcon, ChatBubbleIcon } from './components/icons';
@@ -58,8 +58,8 @@ const App: React.FC = () => {
 
   const [defaultVoice, setDefaultVoice] = useState<Voice | null>(null);
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
-  const [activeView, setActiveView] = useState<'list' | 'editor' | 'chat'>('list');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeView, setActiveView] = useState<'list' | 'editor' | 'chat' | 'create'>('list');
+  
   const [isVoiceManagerOpen, setIsVoiceManagerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -174,14 +174,13 @@ const App: React.FC = () => {
     setActiveView('editor');
   }, []);
 
-  const handleOpenCreateModal = useCallback(() => {
-    setIsCreateModalOpen(true);
+  const handleOpenCreateScreen = useCallback(() => {
+    setActiveView('create');
   }, []);
 
   const handleBackToList = useCallback(() => {
     setActiveView('list');
     setEditingPersona(null);
-    setIsCreateModalOpen(false);
   }, []);
 
   const handleOpenVoiceManager = useCallback(() => setIsVoiceManagerOpen(true), []);
@@ -339,8 +338,14 @@ const App: React.FC = () => {
               onEdit={handleOpenEditor}
               onDelete={handleDeletePersona}
               onChat={handleStartChat}
-              onCreate={handleOpenCreateModal}
+              onCreate={handleOpenCreateScreen}
               onExport={handleExportSinglePersona}
+            />
+          )}
+          {activeView === 'create' && (
+            <CreatePersonaScreen
+              onBack={handleBackToList}
+              onSave={handleSavePersona}
             />
           )}
           {activeView === 'editor' && editingPersona && (
@@ -361,13 +366,7 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {isCreateModalOpen && (
-        <CreatePersonaModal
-          isOpen={isCreateModalOpen}
-          onClose={handleBackToList}
-          onSave={handleSavePersona}
-        />
-      )}
+      
       {isVoiceManagerOpen && (
         <VoiceManagerModal
           isOpen={isVoiceManagerOpen}
@@ -399,7 +398,7 @@ const App: React.FC = () => {
           onClose={() => setIsIssueReporterOpen(false)} 
         />
       }
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 z-60">
         <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-full shadow-lg flex items-center justify-center">
           <ChatBubbleIcon />
         </button>

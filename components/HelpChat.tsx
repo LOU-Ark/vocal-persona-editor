@@ -51,7 +51,11 @@ export const HelpChat: React.FC<HelpChatProps> = ({
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
+            // The wrapperRef should check the event path to see if it originated from the help button.
+            // This is a simplified check.
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+                // A more robust solution would check if the click was on the help button itself.
+                // For now, any click outside closes.
                 onClose();
             }
         }
@@ -62,9 +66,9 @@ export const HelpChat: React.FC<HelpChatProps> = ({
     }, [wrapperRef, onClose]);
 
     return (
-        <div className="fixed bottom-24 right-6 z-50" ref={wrapperRef}>
-            <div className="bg-gray-800 rounded-lg shadow-2xl w-[calc(100vw-2rem)] max-w-md h-[60vh] flex flex-col relative">
-                <header className="flex justify-between items-center p-4 border-b border-gray-700">
+        <div className="fixed inset-0 z-60 flex items-end bg-black bg-opacity-50 md:bg-transparent md:items-center md:justify-end">
+            <div ref={wrapperRef} className="bg-gray-800 rounded-t-lg md:rounded-lg shadow-2xl w-full h-[75vh] flex flex-col md:w-[calc(100vw-2rem)] md:max-w-md md:h-[60vh] md:bottom-24 md:right-6 md:fixed">
+                <header className="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
                     <h2 className="text-xl font-bold text-white">使い方ガイド</h2>
                     <div className="flex items-center">
                         <select
@@ -92,7 +96,7 @@ export const HelpChat: React.FC<HelpChatProps> = ({
                                     {persona?.name?.charAt(0) || 'G'}
                                 </div>
                             )}
-                            <div className={`max-w-md lg:max-w-xl px-4 py-2 rounded-lg ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
+                            <div className={`max-w-xs sm:max-w-md lg:max-w-xl px-4 py-2 rounded-lg ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-200'}`}>
                                 <p className="whitespace-pre-wrap">{msg.parts[0].text}</p>
                             </div>
                         </div>
@@ -112,7 +116,7 @@ export const HelpChat: React.FC<HelpChatProps> = ({
                         </div>
                     )}
                 </div>
-                <div className="flex-shrink-0 p-4 border-t border-gray-700">
+                <div className="flex-shrink-0 p-4 border-t border-gray-700 bg-gray-800">
                   <TextareaAutosize
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
