@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { Persona, PersonaState, PersonaHistoryEntry, Voice } from './types';
+import { Persona, PersonaState, PersonaHistoryEntry, Voice, ChatMessage } from './types';
 import { PersonaEditorScreen, CreatePersonaModal } from './components/PersonaEditorModal';
 import { PersonaList } from './components/PersonaList';
 import { ProductionChat } from './components/ProductionChat';
@@ -9,8 +9,6 @@ import { VoiceManagerModal } from './components/VoiceManagerModal';
 import { Loader } from './components/Loader';
 import { HelpChat } from './components/HelpChat';
 import { IssueReporter } from './components/IssueReporter'; // Import the new component
-
-
 
 const App: React.FC = () => {
   // Define the initial default personas to be used if nothing is in localStorage
@@ -66,12 +64,13 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
   const [isHelpChatOpen, setIsHelpChatOpen] = useState(false);
-  const [isIssueReporterOpen, setIsIssueReporterOpen] = useState(false); // New state for issue reporter
+  const [isIssueReporterOpen, setIsIssueReporterOpen] = useState(false);
   const [selectedHelpPersonaId, setSelectedHelpPersonaId] = useState<string | null>(null);
+  const [helpChatHistory, setHelpChatHistory] = useState<ChatMessage[]>([]);
+  const [isHelpChatLoading, setIsHelpChatLoading] = useState(false);
 
   // --- EFFECTS ---
 
-  // Save personas to localStorage whenever they change.
   useEffect(() => {
     try {
       localStorage.setItem('interactivePersonas', JSON.stringify(personas));
@@ -80,7 +79,6 @@ const App: React.FC = () => {
     }
   }, [personas]);
 
-  // Save custom voices to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('customVoices', JSON.stringify(customVoices));
@@ -89,7 +87,6 @@ const App: React.FC = () => {
     }
   }, [customVoices]);
 
-  // Load default voice config from server on initial render
   useEffect(() => {
     const fetchConfig = async () => {
       try {
@@ -99,8 +96,8 @@ const App: React.FC = () => {
           if (config.defaultVoiceId) {
             setDefaultVoice({
               id: 'default_voice',
-              name: config.defaultVoiceName || 'ADA (default)', // Fallback to "ADA (default)"
-              token: '', // Token is handled server-side
+              name: config.defaultVoiceName || 'ADA (default)',
+              token: '',
               voiceId: config.defaultVoiceId,
             });
           }
@@ -112,7 +109,6 @@ const App: React.FC = () => {
     fetchConfig();
   }, []);
 
-  // Effect to assign default voice to personas that don't have one
   useEffect(() => {
     if (defaultVoice && personas.length > 0) {
       let wasUpdated = false;
@@ -129,12 +125,35 @@ const App: React.FC = () => {
     }
   }, [personas, defaultVoice]);
 
-  // Initialize selectedHelpPersonaId with the ID of the first persona if available
   useEffect(() => {
     if (personas.length > 0 && selectedHelpPersonaId === null) {
       setSelectedHelpPersonaId(personas[0].id);
     }
   }, [personas, selectedHelpPersonaId]);
+
+  const helpChatPersona = useMemo(() => {
+    return personas.find(p => p.id === selectedHelpPersonaId) || personas[0];
+  }, [personas, selectedHelpPersonaId]);
+
+  useEffect(() => {
+    const fetchWelcomeMessage = async () => {
+        if (!helpChatPersona) return;
+        setIsHelpChatLoading(true);
+        try {
+            const welcomeMessage = await geminiService.generateUsageGuideWelcomeMessage(helpChatPersona);
+            setHelpChatHistory([{ role: 'model', parts: [{ text: welcomeMessage }] }]);
+        } catch (error) {
+            console.error("Failed to generate welcome message:", error);
+            setHelpChatHistory([{ role: 'model', parts: [{ text: "ようこそ！何かお手伝いできることはありますか？" }] }]);
+        } finally {
+            setIsHelpChatLoading(false);
+        }
+    };
+
+    if (isHelpChatOpen && helpChatHistory.length === 0) {
+        fetchWelcomeMessage();
+    }
+  }, [isHelpChatOpen, helpChatPersona]);
 
   // --- MEMOS ---
 
@@ -147,10 +166,6 @@ const App: React.FC = () => {
   }, [defaultVoice, customVoices]);
 
   const activePersonaForHeader = useMemo(() => editingPersona, [editingPersona]);
-
-  const helpChatPersona = useMemo(() => {
-    return personas.find(p => p.id === selectedHelpPersonaId) || personas[0];
-  }, [personas, selectedHelpPersonaId]);
 
   // --- HANDLERS ---
 
@@ -239,6 +254,31 @@ const App: React.FC = () => {
       setIsLoading(false);
       setLoadingMessage('');
     }
+  }, []);
+
+  const handleSendHelpMessage = useCallback(async (message: string) => {
+    if (!helpChatPersona) return;
+
+    const newUserMessage: ChatMessage = { role: 'user', parts: [{ text: message }] };
+    const newHistory = [...helpChatHistory, newUserMessage];
+    setHelpChatHistory(newHistory);
+    setIsHelpChatLoading(true);
+
+    try {
+        const responseText = await geminiService.getHelpChatResponse(newHistory, helpChatPersona);
+        const modelMessage: ChatMessage = { role: 'model', parts: [{ text: responseText }] };
+        setHelpChatHistory(prev => [...prev, modelMessage]);
+    } catch (error) {
+        const errorMessage: ChatMessage = { role: 'model', parts: [{ text: "申し訳ありません、エラーが発生しました。" }] };
+        setHelpChatHistory(prev => [...prev, errorMessage]);
+    } finally {
+        setIsHelpChatLoading(false);
+    }
+  }, [helpChatHistory, helpChatPersona]);
+
+  const handleSelectHelpPersona = useCallback((id: string) => {
+    setSelectedHelpPersonaId(id);
+    setHelpChatHistory([]); // Reset history when persona changes
   }, []);
 
   return (
@@ -337,17 +377,20 @@ const App: React.FC = () => {
           defaultVoice={defaultVoice}
         />
       )}
-      {isHelpChatOpen && 
+      {isHelpChatOpen && helpChatPersona &&
         <HelpChat 
           onClose={() => setIsHelpChatOpen(false)} 
           persona={helpChatPersona}
           allPersonas={personas}
           selectedPersonaId={selectedHelpPersonaId}
-          onSelectPersona={setSelectedHelpPersonaId}
+          onSelectPersona={handleSelectHelpPersona}
           onReportIssueClick={() => {
             setIsHelpChatOpen(false);
             setIsIssueReporterOpen(true);
           }}
+          chatHistory={helpChatHistory}
+          isLoading={isHelpChatLoading}
+          onSendMessage={handleSendHelpMessage}
         />
       }
       {isIssueReporterOpen && 

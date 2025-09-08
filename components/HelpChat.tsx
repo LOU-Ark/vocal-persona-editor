@@ -1,43 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import TextareaAutosize from 'react-textarea-autosize';
-import { PersonaState, ChatMessage, Persona } from '../types'; // Import Persona
-import * as geminiService from '../services/geminiService';
-import { SendIcon, CloseIcon, EditIcon } from './icons';
+import { PersonaState, ChatMessage, Persona } from '../types';
+import { SendIcon, CloseIcon } from './icons';
 import { FaRegEnvelope } from 'react-icons/fa';
 
 interface HelpChatProps {
     onClose: () => void;
-    persona: PersonaState; // This will be the currently selected persona for the chat
-    allPersonas: Persona[]; // All available personas
-    selectedPersonaId: string | null; // The ID of the currently selected persona
-    onSelectPersona: (id: string) => void; // Function to change the selected persona
+    persona: PersonaState;
+    allPersonas: Persona[];
+    selectedPersonaId: string | null;
+    onSelectPersona: (id: string) => void;
     onReportIssueClick: () => void;
+    chatHistory: ChatMessage[];
+    isLoading: boolean;
+    onSendMessage: (message: string) => void;
 }
 
-export const HelpChat: React.FC<HelpChatProps> = ({ onClose, persona, allPersonas, selectedPersonaId, onSelectPersona, onReportIssueClick }) => {
-    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+export const HelpChat: React.FC<HelpChatProps> = ({ 
+    onClose, 
+    persona, 
+    allPersonas, 
+    selectedPersonaId, 
+    onSelectPersona, 
+    onReportIssueClick,
+    chatHistory,
+    isLoading,
+    onSendMessage
+}) => {
     const [userInput, setUserInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const chatBoxRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const fetchWelcomeMessage = async () => {
-            setIsLoading(true);
-            try {
-                const welcomeMessage = await geminiService.generateUsageGuideWelcomeMessage(persona);
-                setChatHistory([{ role: 'model', parts: [{ text: welcomeMessage }] }]);
-            } catch (error) {
-                console.error("Failed to generate welcome message:", error);
-                setChatHistory([{ role: 'model', parts: [{ text: "ようこそ！何かお手伝いできることはありますか？" }] }]); // Fallback message
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        if (persona) { // Ensure persona is not null or undefined
-            fetchWelcomeMessage();
-        }
-    }, [persona]); // Depend on the entire persona object to reset chat when it changes
 
     useEffect(() => {
         if (chatBoxRef.current) {
@@ -45,26 +36,11 @@ export const HelpChat: React.FC<HelpChatProps> = ({ onClose, persona, allPersona
         }
     }, [chatHistory]);
 
-    const handleSendMessage = async () => {
+    const handleSendMessage = () => {
         const messageText = userInput.trim();
         if (!messageText || isLoading) return;
-
-        const newUserMessage: ChatMessage = { role: 'user', parts: [{ text: messageText }] };
-        const newHistory = [...chatHistory, newUserMessage];
-        setChatHistory(newHistory);
+        onSendMessage(messageText);
         setUserInput('');
-        setIsLoading(true);
-
-        try {
-            const responseText = await geminiService.getHelpChatResponse(newHistory, persona); // Pass persona object
-            const modelMessage: ChatMessage = { role: 'model', parts: [{ text: responseText }] };
-            setChatHistory(prev => [...prev, modelMessage]);
-        } catch (error) {
-            const errorMessage: ChatMessage = { role: 'model', parts: [{ text: "申し訳ありません、エラーが発生しました。" }] };
-            setChatHistory(prev => [...prev, errorMessage]);
-        } finally {
-            setIsLoading(false);
-        }
     };
 
     const handlePersonaChange = (event: React.ChangeEvent<HTMLSelectElement>) => {

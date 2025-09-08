@@ -317,8 +317,8 @@ async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProf
     const prompt = `以下のキャラクター設定を分析し、マイヤーズ・ブリッグス・タイプ指標（MBTI）プロファイルを日本語で生成しなさい。
     出力は必ず以下のJSONスキーマに従ってください。前置きや説明文は一切含めないで、JSONオブジェクトのみを返してください。
     
-    \`\`\`json
-    {
+    \
+    { 
       "type": "4文字のMBTIタイプコード（例: 'INFJ'）",
       "typeName": "タイプの説明的な名前（例: '提唱者'）",
       "description": "キャラクターの視点から書かれた、この性格タイプに関する1〜2文の簡潔な説明。",
@@ -329,7 +329,7 @@ async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProf
         "tactics": "判断(0)〜知覚(100)のスコア"
       }
     }
-    \`\`\`
+    \
 
     キャラクター設定:
     ${JSON.stringify(personaData, null, 2)}`;
@@ -372,15 +372,10 @@ ${JSON.stringify({ name: personaState.name, role: personaState.role, tone: perso
 }
 
 async function generateUsageGuideWelcomeMessage(personaState: PersonaState): Promise<string> {
-    const prompt = `あなたは「Vocal Persona Editor」のガイドAIです。以下のペルソナ設定に基づいて、ユーザーへの最初の挨拶文を約50字で作成してください。ペルソナの要約を参考に、親しみやすく、かつ簡潔にまとめてください。
-
-ペルソナの要約: ${personaState.summary}
-
-挨拶文:`;
-    const response = await runAiOperationWithFallback((client) =>
-        client.models.generateContent({ model: "gemini-2.5-flash", contents: prompt })
-    );
-    return response.text.trim();
+    // Use getHelpChatResponse to generate a consistent welcome message.
+    // The history is a fake "hello" from the user to trigger a detailed, context-aware welcome.
+    const fakeHistory: ChatMessage[] = [{ role: 'user', parts: [{ text: 'こんにちは、このアプリの使い方を教えてください。' }] }];
+    return getHelpChatResponse(fakeHistory, personaState);
 }
 
 async function continuePersonaCreationChat(history: PersonaCreationChatMessage[], currentParams: Partial<PersonaState>): Promise<PersonaCreationChatResponse> {
@@ -408,6 +403,7 @@ async function continuePersonaCreationChat(history: PersonaCreationChatMessage[]
         }
         \
         
+        
         例: ユーザーが「口調にお嬢様言葉を追加して」と指示した場合、既存の口調を維持しつつ、自然に統合してください。
         \
         {
@@ -417,6 +413,7 @@ async function continuePersonaCreationChat(history: PersonaCreationChatMessage[]
             }
         }
         \
+        
         
         変更の必要がない場合、responseTextのみを返してください。
         例: ユーザーが「おはよう」と挨拶した場合:
@@ -498,7 +495,58 @@ async function getPersonaChatResponse(personaState: PersonaState, history: ChatM
 }
 
 async function getHelpChatResponse(history: ChatMessage[], personaState: PersonaState): Promise<string> {
-    const helpAssistantSystemInstruction = `あなたは「Vocal Persona Editor」のガイドAIです。以下のペルソナ設定に基づいて、ユーザーの質問に対し、アプリの使い方や機能について回答してください。回答は必ず200字以内になるように、簡潔にまとめてください。
+    const appManual = `
+# Vocal Persona Editor - 取扱説明書
+
+## 1. アプリケーションの概要
+このアプリは、AIアシスタントと対話しながら、キャラクターのペルソナ（性格、設定など）を詳細に作成・管理するためのツールです。
+
+## 2. 主な機能
+
+### 2.1. ペルソナ一覧（メイン画面）
+- アプリを起動すると、作成済みのペルソナがカード形式で表示されます。
+- 右上の「＋ 新規ペルソナ」ボタンから、新しいキャラクターの作成を開始できます。
+- 各ペルソナカードの「編集」ボタンを押すと、ペルソナ編集モーダルが開きます。
+- 「チャット」ボタンを押すと、そのペルソナと全画面で会話できるプロダクションチャット画面に移動します。
+
+### 2.2. ペルソナ編集モーダル
+ペルソナの心臓部です。左側、右側、下部の3つの主要なパネルで構成されています。
+
+#### 2.2.1. 左側パネル：基本パラメータ
+ペルソナの基本的な設定項目です。
+- **名前**: キャラクターの名前。
+- **役割**: 職業や立場など。
+- **口調**: 話し方の特徴。
+- **性格**: 内面的な性質。
+- **世界観**: キャラクターが存在する世界の背景。
+- **経験**: 過去の出来事や経歴。
+- **その他**: 上記のカテゴリに収まらない設定。
+
+#### 2.2.2. 右側パネル：AIツール
+AIを活用してペルソナ作成を効率化します。
+- **AIでペルソナを作成**: 「〇〇なキャラクター」といった簡単なキーワード（トピック）を入力すると、AIがWebで情報を検索し、ペルソナの基本パラメータを自動生成します。
+- **ファイルから作成**: キャラクター設定が書かれたテキストファイル（.txt）やJSONファイル（.json）をアップロードすると、AIが内容を解析して各パラメータに自動で振り分けます。
+- **AIサマリー**: 現在のパラメータ設定を基に、AIがキャラクターの魅力的な紹介文を生成します。この紹介文を編集し、「サマリーをパラメータに反映」ボタンを押すと、変更内容が左側の基本パラメータに逆反映されます。
+- **MBTI診断**: AIが現在のペルソナ設定を分析し、MBTI（16タイプ性格診断）の結果をレーダーチャート付きで表示します。
+
+#### 2.2.3. 下部パネル：テストチャット
+作成中のペルソナの口調や性格を、モーダルを閉じることなくすぐに試せます。短い会話で微調整するのに便利です。
+
+#### 2.2.4. 上部ヘッダーのボタン
+- **保存**: 現在の変更を保存します。保存するたびにバージョンが作成されます。
+- **バージョン履歴**: 過去の保存履歴を一覧表示し、特定のバージョンに復元できます。
+- **エクスポート**: ペルソナデータをJSONファイルとしてダウンロードします。
+
+### 2.3. プロダクションチャット
+メイン画面の「チャット」ボタンからアクセスします。より大きな画面で、選んだペルソナとの会話に集中できます。
+
+### 2.4. 音声関連機能
+- **音声の管理**: ヘッダーの歯車アイコンから、TTS（テキスト読み上げ）に使用する声を追加・管理できます。
+- **TTS（テキスト読み上げ）**: チャット画面で、キャラクターの返答を音声で聞くことができます。
+- **STT（音声入力）**: マイクのアイコンを押し、話しかけることでテキストを入力できます。
+
+## 3. あなた（AI）の役割
+- あなたは、「Vocal Persona Editor」のガイドAIです。以下のペルソナ設定に基づいて、ユーザーの質問に対し、アプリの使い方や機能について回答してください。回答は必ず200字以内になるように、簡潔にまとめてください。
 
 ペルソナ設定:
 - 名前: ${personaState.name}
@@ -509,6 +557,23 @@ async function getHelpChatResponse(history: ChatMessage[], personaState: Persona
 - 経験: ${personaState.experience}
 - その他: ${personaState.other}
 - 要約: ${personaState.summary}`;
+
+    const helpAssistantSystemInstruction = `
+${appManual}
+
+# キャラクター設定
+あなたは以下の設定を持つキャラクターとして、上記の取扱説明書に基づいてユーザーを案内してください。
+
+- 名前: ${personaState.name}
+- 役割: ${personaState.role}
+- 口調: ${personaState.tone}
+- 性格: ${personaState.personality}
+- 世界観: ${personaState.worldview}
+- 経験: ${personaState.experience}
+- その他: ${personaState.other}
+- 要約: ${personaState.summary}
+`;
+
     const latestMessage = history[history.length - 1]?.parts[0]?.text;
     if (!latestMessage) throw new Error("No message provided to send.");
 
