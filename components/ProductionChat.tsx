@@ -248,7 +248,6 @@ export const ProductionChat: React.FC<ProductionChatProps> = ({ persona: activeP
                 >
                   <SendIcon />
                 </button>
-                <div className="flex-grow"></div> {/* Spacer */}
                 <div className="flex items-center gap-2 text-gray-400">
                   <VolumeUpIcon className="w-5 h-5" />
                   <label htmlFor="tts-toggle" className="relative inline-flex items-center cursor-pointer">
