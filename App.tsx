@@ -398,11 +398,13 @@ const App: React.FC = () => {
           onClose={() => setIsIssueReporterOpen(false)} 
         />
       }
-      <div className={`fixed right-6 z-60 ${activeView === 'editor' || activeView === 'create' ? 'bottom-24 md:bottom-6' : 'bottom-6'}`}>
-        <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-full shadow-lg flex items-center justify-center">
-          <ChatBubbleIcon />
-        </button>
-      </div>
+      {!isHelpChatOpen && (
+        <div className={`fixed right-6 z-60 ${activeView === 'editor' || activeView === 'create' ? 'bottom-24 md:bottom-6' : 'bottom-6'}`}>
+          <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-full shadow-lg flex items-center justify-center">
+            <ChatBubbleIcon />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

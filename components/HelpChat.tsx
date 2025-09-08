@@ -88,7 +88,7 @@ export const HelpChat: React.FC<HelpChatProps> = ({
                         <button onClick={onClose} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors"><CloseIcon/></button>
                     </div>
                 </header>
-                <div ref={chatBoxRef} className="flex-grow p-4 overflow-y-auto space-y-4">
+                <div ref={chatBoxRef} className="flex-grow p-4 overflow-y-auto space-y-4 pt-16">
                     {chatHistory.map((msg, index) => (
                         <div key={index} className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             {msg.role === 'model' && (
