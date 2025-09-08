@@ -67,7 +67,7 @@ export const HelpChat: React.FC<HelpChatProps> = ({
 
     return (
         <div className="fixed inset-0 z-60 flex items-end bg-black bg-opacity-50 md:bg-transparent md:items-center md:justify-end">
-            <div ref={wrapperRef} className="bg-gray-800 rounded-t-lg md:rounded-lg shadow-2xl w-full h-[75vh] flex flex-col md:w-[calc(100vw-2rem)] md:max-w-md md:h-[60vh] md:bottom-24 md:right-6 md:fixed">
+            <div ref={wrapperRef} className="bg-gray-800 rounded-t-lg md:rounded-lg shadow-2xl w-full h-[75vh] flex flex-col md:w-[calc(100vw-2rem)] md:max-w-md md:h-[60vh] md:bottom-24 md:right-6 md:fixed pt-16">
                 <header className="flex justify-between items-center p-4 border-b border-gray-700 flex-shrink-0">
                     <h2 className="text-xl font-bold text-white">使い方ガイド</h2>
                     <div className="flex items-center">
