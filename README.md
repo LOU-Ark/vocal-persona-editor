@@ -28,19 +28,20 @@ AIを活用して詳細なキャラクターペルソナを作成、管理、対
 
 ## 🛠️ 技術スタック
 
-- **フロントエンド:** React, TypeScript, Tailwind CSS (CDN経由)
+- **フロントエンド:** React, TypeScript, Vite, Tailwind CSS (CDN経由), React Icons
 - **バックエンド (本番):** Vercel Serverless Functions (Node.js)
-- **バックエンド (開発):** Express (ローカル開発用サーバー)
-- **AIモデル:** Google Gemini API - コンテンツ生成、チャット、JSONスキーマ適用、Google検索グラウンディングに使用
-- **テキスト読み上げ (TTS):** Fish Audio API (安全なサーバーレスプロキシ経由)
+- **バックエンド (開発):** Express.js, tsx
+- **AIモデル:** Google Gemini API
+- **データ永続化:** Vercel Blob
+- **テキスト読み上げ (TTS):** Fish Audio API
 - **音声入力 (STT):** Web Speech API
-- **開発ツール:** Vite, tsx, concurrently
+- **開発支援:** Concurrently, dotenv
 
-## 🚀 はじめに
+## 🚀 開発環境のセットアップ
 
 ### 1. APIキーの設定
 
-アプリケーションのAI機能を有効にするには、APIキーの設定が不可欠です。プロジェクトのルートに`.env`ファイルを作成し、以下の環境変数を設定してください。
+プロジェクトのルートに`.env`ファイルを作成し、以下の環境変数を設定してください。
 
 - **Google Gemini APIキー (必須):**
   - `API_KEY=YOUR_GOOGLE_API_KEY`
@@ -54,13 +55,11 @@ AIを活用して詳細なキャラクターペルソナを作成、管理、対
 
 ### 2. 依存関係のインストール
 
-このプロジェクトは、開発用のバックエンドサーバーとフロントエンドのビルドツールにNode.jsとnpmを使用します。
-
 ```bash
 npm install
 ```
 
-### 3. アプリケーションの実行
+### 3. 開発サーバーの起動
 
 以下のコマンドで、Vite開発サーバーとバックエンドAPIサーバーを同時に起動します。
 
@@ -68,8 +67,15 @@ npm install
 npm run dev
 ```
 
-- フロントエンドは `http://localhost:5173` (またはViteが指定したポート) で利用可能になります。
-- バックエンドAPIは `http://localhost:3001` で実行されます。
+- フロントエンド: `http://localhost:5173`
+- バックエンドAPI: `http://localhost:3001`
+
+## デプロイ
+
+このアプリケーションはVercelへのデプロイが最適化されています。リポジトリをVercelにインポートすると、自動的にビルドとデプロイが行われます。
+
+- **ビルドコマンド:** `npm run build` (Vercelが自動実行)
+- **デプロイ環境:** Vercel Serverless Functions, Vercel Blob
 
 ## 📁 ファイル構成
 
@@ -88,8 +94,6 @@ npm run dev
 ├── services/
 │   └── geminiService.ts    # バックエンドAPIを呼び出すためのクライアントサイドサービス
 ├── App.tsx                 # メインのアプリケーションコンポーネントと状態管理
-├── index.html              # メインのHTMLエントリーポイント
-├── index.tsx               # Reactアプリケーションのエントリーポイント
 ├── package.json            # プロジェクトの依存関係とスクリプト
 └── README.md               # このファイル
 ```
