@@ -245,7 +245,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-900 text-white font-sans">
       {isLoading && <Loader message={loadingMessage} />}
       <div className={`container mx-auto px-4 pb-8 ${activeView === 'editor' ? 'pt-0' : 'pt-8'} ${activeView === 'chat' ? 'flex flex-col h-screen max-h-screen' : ''}`}>
-        <header className="flex-shrink-0">
+        <header className="flex-shrink-0 sticky top-0 z-20 bg-gray-900/95 backdrop-blur-sm"> {/* ★この行を修正 */}
           <div className="flex justify-between items-center mb-6">
             {activeView === 'list' ? (
               <div className="flex-grow text-center md:text-left">
@@ -271,8 +271,24 @@ const App: React.FC = () => {
                   <p className="text-sm text-gray-400 mt-1">名前をタップするとペルソナを編集できます。</p>
                 </div>
               </div>
+            ) : activeView === 'editor' ? ( // ★このブロックを置き換えます
+              <div className="flex items-start gap-4 flex-col sm:flex-row">
+                <div className="flex items-center gap-4">
+                  <button onClick={handleBackToList} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
+                    <BackIcon />
+                  </button>
+                  <div className="flex flex-col">
+                    <h1 
+                      className="text-2xl font-bold text-white cursor-pointer hover:text-indigo-400 transition-colors"
+                      onClick={() => editingPersona && handleStartChat(editingPersona.id)}
+                    >
+                      {activePersonaForHeader?.name || 'Editor'}
+                    </h1>
+                    <p className="text-sm text-gray-400">名前をタップするとメインチャットを開始できます</p>
+                  </div>
+                </div>
+              </div>
             ) : null}
-            
           </div>
         </header>
 

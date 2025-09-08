@@ -767,13 +767,6 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
   return (
     <div className="flex flex-col">
        {isLoading && <Loader message={loadingMessage} />}
-       
-       <header className="sticky top-0 z-20 bg-gray-900/95 backdrop-blur-sm flex items-center gap-4 p-4">
-            <button onClick={onBack} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
-                <BackIcon />
-            </button>
-            <h2 className="text-xl font-bold text-indigo-400 truncate">{parameters.name}</h2>
-        </header>
         
         <main className="flex-grow min-h-0 pb-24">
           {error && <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-md my-4 text-sm">{error}</div>}
