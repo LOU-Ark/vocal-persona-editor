@@ -2,10 +2,13 @@ import { head, put } from '@vercel/blob'; // Import head and put
 import { Issue } from '../types';
 
 async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
+  console.log("readDb: Reading from Vercel Blob...");
   try {
     const blobInfo = await head('issues_data'); // Use head to get blob info
+    console.log("readDb: blobInfo:", blobInfo);
     if (blobInfo) {
       const response = await fetch(blobInfo.url); // Fetch content from the URL
+      console.log("readDb: fetch response status:", response.status);
       const text = await response.text();
       return JSON.parse(text);
     }
@@ -13,9 +16,7 @@ async function readDb(): Promise<{ personas: any[]; issues: Issue[] }> {
     return { personas: [], issues: [] };
   } catch (error) {
     console.error('Failed to read from Vercel Blob:', error);
-    // In case of an error reading from Blob, return a default structure
-    // or re-throw if you want to propagate the error.
-    return { personas: [], issues: [] };
+    throw error;
   }
 }
 
@@ -28,6 +29,7 @@ async function writeDb(data: { personas: any[]; issues: Issue[] }): Promise<void
 }
 
 export async function getIssuesHandler(req: any, res: any) {
+  console.log("getIssuesHandler: Received request");
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: 'Method Not Allowed' });
