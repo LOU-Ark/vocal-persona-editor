@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Issue } from '../types';
 import * as geminiService from '../services/geminiService';
 import { CloseIcon, SendIcon, MagicWandIcon } from './icons';
+import { WBS } from './WBS';
 
 interface IssueReporterProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-
 
 const IssueDetailModal: React.FC<{ issue: Issue; onClose: () => void; }> = ({ issue, onClose }) => {
   return (
@@ -44,7 +43,7 @@ export const IssueReporter: React.FC<IssueReporterProps> = ({ isOpen, onClose })
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'submit' | 'list'>('submit');
+  const [activeTab, setActiveTab] = useState<'submit' | 'list' | 'wbs'>('submit');
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
 
   useEffect(() => {
@@ -133,7 +132,7 @@ export const IssueReporter: React.FC<IssueReporterProps> = ({ isOpen, onClose })
           </header>
 
           <div className="flex space-x-4 border-b border-gray-700 px-6">
-            {(['submit', 'list'] as const).map((tab) => (
+            {(['submit', 'list', 'wbs'] as const).map((tab) => (
               <button
                 key={tab}
                 className={`py-3 px-2 -mb-px border-b-2 font-semibold text-sm capitalize transition-colors ${
@@ -206,6 +205,10 @@ export const IssueReporter: React.FC<IssueReporterProps> = ({ isOpen, onClose })
                   ))}
                 </div>
               </div>
+            )}
+
+            {activeTab === 'wbs' && (
+              <WBS />
             )}
           </main>
         </div>

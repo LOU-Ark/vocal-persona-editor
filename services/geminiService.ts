@@ -1,4 +1,10 @@
-import type { Persona, PersonaState, ChatMessage, WebSource, PersonaCreationChatMessage, PersonaCreationChatResponse, MbtiProfile } from '../types';
+import type { Persona, PersonaState, ChatMessage, WebSource, PersonaCreationChatMessage, PersonaCreationChatResponse, MbtiProfile, Issue } from '../types';
+
+interface WBSNode {
+  category: string;
+  issues: { id: string; title: string; status: 'open' | 'closed' }[];
+  subCategories?: WBSNode[];
+}
 
 async function callApi<T>(action: string, payload: any): Promise<T> {
   try {

@@ -211,7 +211,6 @@ const App: React.FC = () => {
         voiceId: defaultVoice ? defaultVoice.id : undefined,
       };
       setPersonas(prevPersonas => [...prevPersonas, newPersona]);
-      setIsCreateModalOpen(false);
       setEditingPersona(newPersona);
       setActiveView('editor');
     }

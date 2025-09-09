@@ -46,6 +46,33 @@ const issueSchema = {
     required: ["title", "body"]
 };
 
+const wbsSchema = {
+    type: Type.ARRAY,
+    items: {
+        type: Type.OBJECT,
+        properties: {
+            category: { type: Type.STRING, description: "The name of the functional category." },
+            issues: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        id: { type: Type.STRING, description: "The ID of the issue." },
+                        title: { type: Type.STRING, description: "The title of the issue." },
+                        status: { type: Type.STRING, description: "The status of the issue ('open' or 'closed')." },
+                    },
+                    required: ["id", "title", "status"],
+                },
+            },
+            subCategories: {
+                type: Type.ARRAY,
+                items: { type: Type.OBJECT, description: "Recursive definition for sub-categories." }, // Simplified for recursion
+            },
+        },
+        required: ["category", "issues"],
+    },
+};
+
 // --- API Client Management with Fallback ---
 
 const apiClientManager = {
@@ -318,7 +345,7 @@ async function generateMbtiProfile(personaState: PersonaState): Promise<MbtiProf
     出力は必ず以下のJSONスキーマに従ってください。前置きや説明文は一切含めないで、JSONオブジェクトのみを返してください。
     
     \
-    { 
+    {
       "type": "4文字のMBTIタイプコード（例: 'INFJ'）",
       "typeName": "タイプの説明的な名前（例: '提唱者'）",
       "description": "キャラクターの視点から書かれた、この性格タイプに関する1〜2文の簡潔な説明。",
@@ -606,6 +633,22 @@ ${rawText}
     return await generateWithSchema<{ title: string; body: string }>(prompt, issueSchema);
 }
 
+async function generateWBSFromIssues(issues: any[]): Promise<any> {
+    const prompt = `以下のissueリストを分析し、機能単位で階層的なWBS（Work Breakdown Structure）を構築してください。
+
+- 各issueは、最も適切だと思われる機能カテゴリに分類してください。
+- カテゴリは、「UI改善」「チャット機能」「ペルソナ管理」のような粒度で設定してください。
+- 必要に応じて、カテゴリをネスト（サブカテゴリ化）しても構いません。
+- 各issueの情報として、id, title, statusのみを含めてください。
+- issueのタイトルや説明文から、機能的な要求を読み取って分類してください。
+
+---
+Issueリスト:
+${JSON.stringify(issues.map(i => ({ id: i.id, title: i.title, body: i.body, status: i.status })), null, 2)}
+---`;
+    return await generateWithSchema<any>(prompt, wbsSchema);
+}
+
 
 export default async function handler(req: any, res: any) {
     if (req.method !== 'POST') {
@@ -670,6 +713,9 @@ export default async function handler(req: any, res: any) {
                 break;
             case 'refineIssueText':
                 result = await refineIssueText(payload.rawText);
+                break;
+            case 'generateWBSFromIssues':
+                result = await generateWBSFromIssues(payload.issues);
                 break;
             default:
                 return res.status(400).json({ message: `Invalid action: ${action}` });
