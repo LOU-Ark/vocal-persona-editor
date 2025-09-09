@@ -630,6 +630,12 @@ export const PersonaEditorScreen: React.FC<PersonaEditorProps> = ({ onBack, onSa
     // setActiveTab('editor'); // Optional: reset to editor tab when persona changes
   }, [initialPersona, voices]);
 
+  useEffect(() => {
+    if (initialPersona) {
+      setParameters(prev => ({ ...prev, experience: initialPersona.experience || '' }));
+    }
+  }, [initialPersona]);
+
   const handleEditField = (field: keyof PersonaState, label: string) => {
     setEditingField({ field, label });
   };

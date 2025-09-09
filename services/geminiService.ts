@@ -86,3 +86,7 @@ export const getHelpChatResponse = (history: ChatMessage[], personaState: Person
 export const refineIssueText = (rawText: string): Promise<{ title: string; body: string }> => {
   return callApi('refineIssueText', { rawText });
 };
+
+export const generateWBSFromIssues = (issues: Issue[]): Promise<WBSNode[]> => {
+  return callApi('generateWBSFromIssues', { issues });
+};

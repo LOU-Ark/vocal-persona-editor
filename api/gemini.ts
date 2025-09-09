@@ -185,14 +185,23 @@ async function generateWithSchema<T>(prompt: string, schema: any): Promise<T> {
 
     let text = (response && response.text) ? String(response.text).trim() : '';
 
-    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (markdownMatch && markdownMatch[1]) {
-        text = markdownMatch[1];
+    const jsonRegex = /```json\n([\s\S]*?)\n```/;
+    const match = text.match(jsonRegex);
+
+    if (match && match[1]) {
+        text = match[1];
     } else {
-        const firstBrace = text.indexOf('{');
-        const lastBrace = text.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace > firstBrace) {
-            text = text.substring(firstBrace, lastBrace + 1);
+        // Fallback for responses that might not be in a markdown block
+        const firstBracket = text.indexOf('[');
+        const lastBracket = text.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket > firstBracket) {
+            text = text.substring(firstBracket, lastBracket + 1);
+        } else {
+            const firstBrace = text.indexOf('{');
+            const lastBrace = text.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace > firstBrace) {
+                text = text.substring(firstBrace, lastBrace + 1);
+            }
         }
     }
 
@@ -222,7 +231,7 @@ async function createPersonaFromWeb(topic: string): Promise<{ personaState: Omit
         .map((chunk: any) => ({
             title: chunk.web?.title || 'Unknown Source',
             uri: chunk.web?.uri || '#',
-        })
+        }) 
         )
         .filter((source: WebSource, index: number, self: WebSource[]) =>
             source.uri !== '#' && self.findIndex(s => s.uri === source.uri) === index
@@ -641,11 +650,14 @@ async function generateWBSFromIssues(issues: any[]): Promise<any> {
 - 必要に応じて、カテゴリをネスト（サブカテゴリ化）しても構いません。
 - 各issueの情報として、id, title, statusのみを含めてください。
 - issueのタイトルや説明文から、機能的な要求を読み取って分類してください。
+- 返却値は必ずJSONオブジェクトのみとし、前後に説明文やマークダウンを含めないでください。
 
 ---
 Issueリスト:
 ${JSON.stringify(issues.map(i => ({ id: i.id, title: i.title, body: i.body, status: i.status })), null, 2)}
----`;
+---
+
+出力は必ず指定のJSONスキーマに従ってください。`;
     return await generateWithSchema<any>(prompt, wbsSchema);
 }
 
