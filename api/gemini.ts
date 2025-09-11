@@ -183,6 +183,9 @@ async function generateWithSchema<T>(prompt: string, schema: any): Promise<T> {
         })
     );
 
+        // AIからの生の応答テキストをログに出力
+    console.log("AIからの生の応答:", response.text);
+    
     let text = (response && response.text) ? String(response.text).trim() : '';
 
     const jsonRegex = /```json\n([\s\S]*?)\n```/;

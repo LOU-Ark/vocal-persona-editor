@@ -1,3 +1,4 @@
+// components/WBS.tsx
 
 import React, { useState, useEffect } from 'react';
 import { Issue } from '../types';
@@ -10,7 +11,6 @@ interface WBSNode {
   subCategories?: WBSNode[];
 }
 
-// Helper function to normalize the WBS data
 const normalizeWbsData = (data: any): WBSNode[] => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
@@ -18,7 +18,7 @@ const normalizeWbsData = (data: any): WBSNode[] => {
     if (Array.isArray(data.wbs)) return data.wbs;
     if (Array.isArray(data.nodes)) return data.nodes;
     if (Array.isArray(data.children)) return data.children;
-    if (data.name && Array.isArray(data.children)) return [data]; // Handle root object
+    if (data.name && Array.isArray(data.children)) return [data];
     return [];
 };
 
@@ -30,20 +30,13 @@ export const WBS: React.FC = () => {
   const [activePath, setActivePath] = useState<string[]>([]);
 
   useEffect(() => {
-    const generateWBS = async () => {
+    const fetchWBS = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/issues');
-        if (!response.ok) throw new Error('Failed to fetch issues.');
-        const issues: Issue[] = await response.json();
-
-        if (issues.length === 0) {
-          setWbs([]);
-          return;
-        }
-
-        const rawWbsData = await geminiService.generateWBSFromIssues(issues);
+        const response = await fetch('/api/wbs'); // 新しいエンドポイントを使用
+        if (!response.ok) throw new Error('Failed to fetch WBS.');
+        const rawWbsData = await response.json();
         const normalizedData = normalizeWbsData(rawWbsData);
         
         if (normalizedData.length === 0) {
@@ -60,7 +53,7 @@ export const WBS: React.FC = () => {
       }
     };
 
-    generateWBS();
+    fetchWBS();
   }, []);
 
   const handleNodeClick = (path: string[]) => {
@@ -75,7 +68,6 @@ export const WBS: React.FC = () => {
         if (node && node.subCategories) {
             currentLevel = node.subCategories;
         } else {
-            // Path is invalid or has no subcategories, stop traversing
             return node?.issues || [];
         }
     }
