@@ -33,6 +33,10 @@ async function readDb(): Promise<{ personas: any[]; issues: Issue[]; wbs?: any; 
       }
       return JSON.parse(text);
     } catch (error) {
+      // --- 一時的なデバッグログ ---
+      console.error('readDbでエラーをキャッチしました。エラーオブジェクト詳細:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+      // --- デバッグログここまで ---
+
       // headが404を投げた場合（Blobが存在しない場合）
       if (error.status === 404) {
         console.log("readDb: Blob not found, returning default structure.");
