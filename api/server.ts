@@ -12,10 +12,10 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Import handlers. Since they are default exports, we can name them anything.
-import configHandler from './config';
-import geminiHandler from './gemini';
-import ttsHandler from './tts';
-import { getIssuesHandler, createIssueHandler, getWbsHandler} from './issues'; // Import issue handlers
+import configHandler from './config.js';
+import geminiHandler from './gemini.js';
+import ttsHandler from './tts.js';
+import { getIssuesHandler, createIssueHandler, getWbsHandler} from './issues.js'; // Import issue handlers
 
 const app = express();
 const port = 3001;

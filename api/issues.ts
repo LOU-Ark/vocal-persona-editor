@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Issue } from '../types';
-import * as geminiService from '../services/geminiService'; // geminiServiceをインポート
+import * as geminiService from '../services/geminiService.js'; // geminiServiceをインポート
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
