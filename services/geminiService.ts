@@ -18,6 +18,11 @@ const API_BASE_URL = isBrowser
 async function callApi<T>(action: string, payload: any): Promise<T> {
   try {
     const url = `${API_BASE_URL}/api/gemini`;
+    // --- Vercel Debugging Log ---
+    if (!isBrowser) {
+      console.log(`[SERVER-SIDE CALL] Attempting to fetch: ${url}`);
+    }
+    // --- End Debugging Log ---
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
