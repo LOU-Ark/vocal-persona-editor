@@ -97,6 +97,7 @@ const apiClientManager = {
     },
 
     getActiveClient(): GoogleGenAI {
+        this.initialize(); // Initialize on first use
         if (this.clients.length === 0) {
             throw new Error("Server configuration error: No API_KEY or GEMINI_API_KEY environment variable is set.");
         }
