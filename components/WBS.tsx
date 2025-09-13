@@ -19,7 +19,10 @@ interface WBSNodeData {
 const WBSNode: React.FC<{ node: WBSNodeData; level: number }> = ({ node, level }) => {
   const [isOpen, setIsOpen] = useState(level < 2); // Auto-expand first few levels
 
-  const hasSubItems = node.items && node.items.length > 0;
+  const nodeName = node.name || (node as any).category;
+  const subItems = node.items || (node as any).sub_categories || (node as any).subCategories;
+
+  const hasSubItems = subItems && subItems.length > 0;
   const hasIssues = node.issues && node.issues.length > 0;
 
   return (
@@ -35,7 +38,7 @@ const WBSNode: React.FC<{ node: WBSNodeData; level: number }> = ({ node, level }
         ) : (
           <div className="w-4 h-4 mr-2" /> // Placeholder for alignment
         )}
-        <h3 className="font-semibold text-foreground select-none">{node.name}</h3>
+        <h3 className="font-semibold text-foreground select-none">{nodeName}</h3>
       </div>
 
       {isOpen && (
@@ -52,8 +55,8 @@ const WBSNode: React.FC<{ node: WBSNodeData; level: number }> = ({ node, level }
           )}
           {hasSubItems && (
             <div className="space-y-1">
-              {node.items?.map((subNode, index) => (
-                <WBSNode key={`${subNode.name}-${index}`} node={subNode} level={level + 1} />
+              {subItems?.map((subNode: WBSNodeData, index: number) => (
+                <WBSNode key={`${subNode.name || (subNode as any).category}-${index}`} node={subNode} level={level + 1} />
               ))}
             </div>
           )}
