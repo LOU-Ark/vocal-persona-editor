@@ -655,6 +655,7 @@ export async function generateWBSFromIssues(issues: any[]): Promise<any> {
 - 各issueの情報として、id, title, statusのみを含めてください。
 - issueのタイトルや説明文から、機能的な要求を読み取って分類してください。
 - 返却値は必ずJSONオブジェクトのみとし、前後に説明文やマークダウンを含めないでください。
+- **重要:** カテゴリ名は'name'キー、サブカテゴリの配列は'items'キーを使用してください。
 
 ---
 Issueリスト:

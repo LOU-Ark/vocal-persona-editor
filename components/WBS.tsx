@@ -80,12 +80,25 @@ export const WBS: React.FC = () => {
         
         const rawData = await response.json();
         
-        // Normalize the deeply nested WBS data from the user's JSON structure
-        const normalizedData = rawData?.wbs?.wbs || rawData?.wbs || rawData || [];
+        const normalizeWbsData = (data: any): WBSNodeData[] => {
+            if (!data) return [];
+            // Handle the case where the AI returns { "WBS": [...] }
+            if (data.WBS && Array.isArray(data.WBS)) return data.WBS;
+            // Handle the case where the db stores { "wbs": { "wbs": [...] } }
+            if (data.wbs?.wbs && Array.isArray(data.wbs.wbs)) return data.wbs.wbs;
+            // Handle the case where the db stores { "wbs": [...] }
+            if (data.wbs && Array.isArray(data.wbs)) return data.wbs;
+            // Handle the case where the data is already the array
+            if (Array.isArray(data)) return data;
+            return [];
+        };
 
-        if (!Array.isArray(normalizedData) || normalizedData.length === 0) {
-            throw new Error("WBS data is empty or in an unexpected format.");
+        const normalizedData = normalizeWbsData(rawData);
+        
+        if (normalizedData.length === 0) {
+            console.warn("Normalized WBS data is empty. This may be expected if there are few issues.");
         }
+
         setWbs(normalizedData);
       } catch (err) {
         console.error("WBS Fetch Error:", err);
