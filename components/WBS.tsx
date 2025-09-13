@@ -1,52 +1,94 @@
-// components/WBS.tsx
-
 import React, { useState, useEffect } from 'react';
-import { Issue } from '../types';
-import * as geminiService from '../services/geminiService';
 import { Loader } from './Loader';
+import { ChevronRightIcon } from './icons';
 
-interface WBSNode {
-  category: string;
-  issues?: { id: string; title: string; status: 'open' | 'closed' }[];
-  subCategories?: WBSNode[];
+// --- Type Definitions ---
+interface WbsIssue {
+  id: string;
+  title: string;
+  status: 'open' | 'closed';
 }
 
-const normalizeWbsData = (data: any): WBSNode[] => {
-    if (!data) return [];
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data.WBS)) return data.WBS;
-    if (Array.isArray(data.wbs)) return data.wbs;
-    if (Array.isArray(data.nodes)) return data.nodes;
-    if (Array.isArray(data.children)) return data.children;
-    if (data.name && Array.isArray(data.children)) return [data];
-    return [];
+interface WBSNodeData {
+  name: string;
+  items?: WBSNodeData[];
+  issues?: WbsIssue[];
+}
+
+// --- Recursive Node Component ---
+const WBSNode: React.FC<{ node: WBSNodeData; level: number }> = ({ node, level }) => {
+  const [isOpen, setIsOpen] = useState(level < 2); // Auto-expand first few levels
+
+  const hasSubItems = node.items && node.items.length > 0;
+  const hasIssues = node.issues && node.issues.length > 0;
+
+  return (
+    <div style={{ marginLeft: `${level * 1.5}rem` }}>
+      <div
+        className="flex items-center py-2 cursor-pointer group"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {(hasSubItems || hasIssues) ? (
+          <ChevronRightIcon
+            className={`h-4 w-4 mr-2 text-muted-foreground transition-transform group-hover:text-foreground ${isOpen ? 'rotate-90' : ''}`}
+          />
+        ) : (
+          <div className="w-4 h-4 mr-2" /> // Placeholder for alignment
+        )}
+        <h3 className="font-semibold text-foreground select-none">{node.name}</h3>
+      </div>
+
+      {isOpen && (
+        <div className="border-l-2 border-border pl-4 ml-[7px]">
+          {hasIssues && (
+            <ul className="list-none p-0 my-2 space-y-2">
+              {node.issues?.map((issue) => (
+                <li key={issue.id} className="flex items-center text-sm py-1">
+                  <span className={`w-2 h-2 rounded-full mr-3 flex-shrink-0 ${issue.status === 'open' ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-muted-foreground">{issue.title}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {hasSubItems && (
+            <div className="space-y-1">
+              {node.items?.map((subNode, index) => (
+                <WBSNode key={`${subNode.name}-${index}`} node={subNode} level={level + 1} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 };
 
 
+// --- Main WBS Component ---
 export const WBS: React.FC = () => {
-  const [wbs, setWbs] = useState<WBSNode[] | null>(null);
+  const [wbs, setWbs] = useState<WBSNodeData[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activePath, setActivePath] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchWBS = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/wbs'); // 新しいエンドポイントを使用
-        if (!response.ok) throw new Error('Failed to fetch WBS.');
-        const rawWbsData = await response.json();
-        const normalizedData = normalizeWbsData(rawWbsData);
+        const response = await fetch('/api/wbs');
+        if (!response.ok) throw new Error('Failed to fetch WBS data.');
         
-        if (normalizedData.length === 0) {
-            throw new Error("WBS data could not be normalized or is empty.");
+        const rawData = await response.json();
+        
+        // Normalize the deeply nested WBS data from the user's JSON structure
+        const normalizedData = rawData?.wbs?.wbs || rawData?.wbs || rawData || [];
+
+        if (!Array.isArray(normalizedData) || normalizedData.length === 0) {
+            throw new Error("WBS data is empty or in an unexpected format.");
         }
-
         setWbs(normalizedData);
-
       } catch (err) {
-        console.error("WBS: Error processing WBS data:", err);
+        console.error("WBS Fetch Error:", err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       } finally {
         setIsLoading(false);
@@ -56,90 +98,23 @@ export const WBS: React.FC = () => {
     fetchWBS();
   }, []);
 
-  const handleNodeClick = (path: string[]) => {
-    setActivePath(path);
-  };
-
-  const getCurrentNodes = () => {
-    if (!wbs) return [];
-    let currentLevel = wbs;
-    for (const key of activePath) {
-        const node = currentLevel.find(n => n.category === key);
-        if (node && node.subCategories) {
-            currentLevel = node.subCategories;
-        } else {
-            return node?.issues || [];
-        }
-    }
-    return currentLevel;
-  };
-
-  const renderBreadcrumbs = () => (
-    <div className="mb-4 text-sm text-gray-400">
-      <span onClick={() => setActivePath([])} className="cursor-pointer hover:text-indigo-400">WBS Root</span>
-      {activePath.map((path, index) => (
-        <span key={index}>
-          <span className="mx-2">/</span>
-          <span 
-            onClick={() => setActivePath(activePath.slice(0, index + 1))}
-            className="cursor-pointer hover:text-indigo-400"
-          >
-            {path}
-          </span>
-        </span>
-      ))}
-    </div>
-  );
-
-  const renderNodeList = (nodes: any[]) => {
-    if (nodes.every(node => node.hasOwnProperty('id')) ) {
-        return (
-            <ul className="list-disc list-inside mt-2 ml-6">
-                {nodes.map(issue => (
-                    <li key={issue.id} className="text-gray-400 text-sm">
-                        <span className={`mr-2 ${issue.status === 'open' ? 'text-green-500' : 'text-red-500'}`}>●</span>
-                        {issue.title}
-                    </li>
-                ))}
-            </ul>
-        )
-    }
-
-    return (
-        <div>
-            {nodes.map((node) => {
-                const hasSubcategories = node.subCategories && node.subCategories.length > 0;
-
-                return (
-                    <div key={node.category} className="mb-2">
-                        <div 
-                            onClick={() => hasSubcategories && handleNodeClick([...activePath, node.category])}
-                            className={`p-3 rounded-md transition-colors ${hasSubcategories ? 'cursor-pointer bg-gray-800 hover:bg-gray-700' : 'bg-gray-800/50'}`}>
-                            <h3 className="font-semibold text-indigo-400">{node.category}</h3>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-  };
-
   if (isLoading) {
-    return <div className="flex justify-center items-center h-full"><Loader /></div>;
+    return <div className="flex justify-center items-center p-8"><Loader /></div>;
   }
 
   if (error) {
-    return <p className="text-red-400 text-center">Error: {error}</p>;
+    return <p className="text-red-500 text-center p-8">Error: {error}</p>;
   }
 
-  if (!wbs) {
-    return <p className="text-gray-500 text-center">No WBS data available.</p>;
+  if (!wbs || wbs.length === 0) {
+    return <p className="text-muted-foreground text-center p-8">No WBS data available.</p>;
   }
 
   return (
-    <div className="p-4">
-        {renderBreadcrumbs()}
-        {renderNodeList(getCurrentNodes())}
+    <div className="p-1">
+      {wbs.map((node, index) => (
+        <WBSNode key={`${node.name}-${index}`} node={node} level={0} />
+      ))}
     </div>
   );
 };

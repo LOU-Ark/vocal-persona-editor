@@ -6,9 +6,19 @@ interface WBSNode {
   subCategories?: WBSNode[];
 }
 
+// Check if the code is running in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
+const API_BASE_URL = isBrowser
+  ? '' // In the browser, use relative paths
+  : process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3001'; // On the server, use an absolute path
+
 async function callApi<T>(action: string, payload: any): Promise<T> {
   try {
-    const response = await fetch('/api/gemini', {
+    const url = `${API_BASE_URL}/api/gemini`;
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, payload })

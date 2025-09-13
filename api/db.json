@@ -76,6 +76,114 @@
       "status": "open",
       "createdAt": "2025-09-12T04:48:57.010Z",
       "updatedAt": "2025-09-12T04:48:57.010Z"
+    },
+    {
+      "id": "issue-1757656018434-f9axtqet8",
+      "title": "wbsのファイルは？",
+      "body": "wbsのファイルは？",
+      "status": "open",
+      "createdAt": "2025-09-12T05:46:58.434Z",
+      "updatedAt": "2025-09-12T05:46:58.434Z"
     }
-  ]
+  ],
+  "wbs": {
+    "wbs": [
+      {
+        "name": "チャット・メッセージング機能",
+        "items": [
+          {
+            "name": "メッセージ送信",
+            "issues": [
+              {
+                "id": "issue-1757118630589-0qv857848",
+                "title": "清書不要でメッセージを送信したい",
+                "status": "closed"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "AI機能",
+        "items": [
+          {
+            "name": "ペルソナ管理",
+            "issues": [
+              {
+                "id": "issue-1757118930812-uakg6ds4u",
+                "title": "使い方ガイドのAIを登録してあるペルソナから選びたい",
+                "status": "closed"
+              }
+            ]
+          },
+          {
+            "name": "AI応答生成",
+            "issues": [
+              {
+                "id": "issue-1757124382889-w2l086zcx",
+                "title": "ガイドAI: ペルソナ選択後の初回コメント文字数短縮要望 (50字)",
+                "status": "open"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "UI改善",
+        "items": [
+          {
+            "name": "インタラクション",
+            "issues": [
+              {
+                "id": "issue-1757119164652-a670dx5v9",
+                "title": "モーダル画面のクリックアウトで閉じる機能の追加",
+                "status": "closed"
+              }
+            ]
+          },
+          {
+            "name": "デザイン・表示",
+            "issues": [
+              {
+                "id": "issue-1757120114937-o7w8mgpco",
+                "title": "使い方ガイドのフィードバック送信アイコンデザイン変更のご提案",
+                "status": "closed"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "課題・クレーム管理",
+        "items": [
+          {
+            "name": "ステータス・表示管理",
+            "issues": [
+              {
+                "id": "issue-1757119007866-2p03wmuzi",
+                "title": "解決済みクレームの管理方法改善要望",
+                "status": "closed"
+              },
+              {
+                "id": "issue-1757124527812-wravahfbd",
+                "title": "提出済み課題表示のデフォルトを「Open」にし、フィルタ機能を追加する要望",
+                "status": "open"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "その他",
+        "issues": [
+          {
+            "id": "issue-1757652537009-4mz4gj8hf",
+            "title": "テスト",
+            "status": "open"
+          }
+        ]
+      }
+    ]
+  },
+  "issueCountForWbs": 8
 }

@@ -1,17 +1,19 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Persona, PersonaState, PersonaHistoryEntry, Voice, ChatMessage } from './types';
 import { PersonaEditorScreen, CreatePersonaScreen } from './components/PersonaEditorModal';
 import { PersonaList } from './components/PersonaList';
 import { ProductionChat } from './components/ProductionChat';
-import { BackIcon, ChatBubbleIcon } from './components/icons';
+import { BackIcon, ChatBubbleIcon, SunIcon, MoonIcon } from './components/icons';
 import * as geminiService from './services/geminiService';
 import { VoiceManagerModal } from './components/VoiceManagerModal';
 import { Loader } from './components/Loader';
 import { HelpChat } from './components/HelpChat';
-import { IssueReporter } from './components/IssueReporter'; // Import the new component
+import { IssueReporter } from './components/IssueReporter';
+import { useTheme } from './components/ThemeProvider';
 
 const App: React.FC = () => {
-  // Define the initial default personas to be used if nothing is in localStorage
+  const { setTheme, theme } = useTheme();
+
   const initialDefaultPersonas: Persona[] = [
     {
       id: '1',
@@ -30,7 +32,6 @@ const App: React.FC = () => {
     }
   ];
 
-  // --- STATE MANAGEMENT ---
   const [personas, setPersonas] = useState<Persona[]>(() => {
     try {
       const storedPersonas = localStorage.getItem('interactivePersonas');
@@ -68,8 +69,6 @@ const App: React.FC = () => {
   const [selectedHelpPersonaId, setSelectedHelpPersonaId] = useState<string | null>(null);
   const [helpChatHistory, setHelpChatHistory] = useState<ChatMessage[]>([]);
   const [isHelpChatLoading, setIsHelpChatLoading] = useState(false);
-
-  // --- EFFECTS ---
 
   useEffect(() => {
     try {
@@ -155,8 +154,6 @@ const App: React.FC = () => {
     }
   }, [isHelpChatOpen, helpChatPersona]);
 
-  // --- MEMOS ---
-
   const allVoices = useMemo(() => {
     const voices: Voice[] = [];
     if (defaultVoice) {
@@ -166,8 +163,6 @@ const App: React.FC = () => {
   }, [defaultVoice, customVoices]);
 
   const activePersonaForHeader = useMemo(() => editingPersona, [editingPersona]);
-
-  // --- HANDLERS ---
 
   const handleOpenEditor = useCallback((persona: Persona) => {
     setEditingPersona(persona);
@@ -280,53 +275,63 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans">
+    <div className="min-h-screen bg-background text-foreground font-sans">
       {isLoading && <Loader message={loadingMessage} />}
       <div className={`container mx-auto px-4 pb-8 ${activeView === 'editor' ? 'pt-0' : 'pt-8'} ${activeView === 'chat' ? 'flex flex-col h-screen max-h-screen' : ''}`}>
-        <header className="flex-shrink-0 sticky top-0 z-20 bg-gray-900/95 backdrop-blur-sm"> {/* ★この行を修正 */}
+        <header className="flex-shrink-0 sticky top-0 z-20 bg-background/95 backdrop-blur-sm">
           <div className="flex justify-between items-center mb-6">
-            {activeView === 'list' ? (
-              <div className="flex-grow text-center md:text-left">
-                <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-600">
-                  Interactive Persona Editor
-                </h1>
-                <p className="text-gray-400 mt-1">AI-powered character creation studio.</p>
-                <p className="text-gray-400 mt-1">ペルソナカードをタップして会話を始めましょう！</p>
-              </div>
-            ) : activeView === 'chat' ? (
-              <div className="flex items-center gap-4">
-                <button onClick={handleBackToList} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
-                  <BackIcon />
-                </button>
-                <div> {/* 新しいdivでh1とpをまとめる */}
-                  <h1 
-                    className="text-2xl font-bold text-white cursor-pointer hover:text-indigo-400 transition-colors"
-                    onClick={() => editingPersona && handleOpenEditor(editingPersona)}
-                  >
-                    {activePersonaForHeader?.name || 'Chat'}
+            <div className="flex-grow">
+              {activeView === 'list' ? (
+                <div className="text-center md:text-left">
+                  <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-600">
+                    Interactive Persona Editor
                   </h1>
-                  {/* ここに新しいpタグを追加 */}
-                  <p className="text-sm text-gray-400 mt-1">名前をタップするとペルソナを編集できます。</p>
+                  <p className="text-muted-foreground mt-1">AI-powered character creation studio.</p>
+                  <p className="text-muted-foreground mt-1">ペルソナカードをタップして会話を始めましょう！</p>
                 </div>
-              </div>
-            ) : activeView === 'editor' ? ( // ★このブロックを置き換えます
-              <div className="flex items-start gap-4 flex-col sm:flex-row">
+              ) : activeView === 'chat' ? (
                 <div className="flex items-center gap-4">
-                  <button onClick={handleBackToList} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-gray-700 transition-colors" aria-label="Back to persona list">
+                  <button onClick={handleBackToList} className="text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-muted transition-colors" aria-label="Back to persona list">
                     <BackIcon />
                   </button>
-                  <div className="flex flex-col">
+                  <div>
                     <h1 
-                      className="text-2xl font-bold text-white cursor-pointer hover:text-indigo-400 transition-colors"
-                      onClick={() => editingPersona && handleStartChat(editingPersona.id)}
+                      className="text-2xl font-bold text-foreground cursor-pointer hover:text-indigo-400 transition-colors"
+                      onClick={() => editingPersona && handleOpenEditor(editingPersona)}
                     >
-                      {activePersonaForHeader?.name || 'Editor'}
+                      {activePersonaForHeader?.name || 'Chat'}
                     </h1>
-                    <p className="text-sm text-gray-400">名前をタップするとメインチャットを開始できます</p>
+                    <p className="text-sm text-muted-foreground mt-1">名前をタップするとペルソナを編集できます。</p>
                   </div>
                 </div>
-              </div>
-            ) : null}
+              ) : activeView === 'editor' ? (
+                <div className="flex items-start gap-4 flex-col sm:flex-row">
+                  <div className="flex items-center gap-4">
+                    <button onClick={handleBackToList} className="text-muted-foreground hover:text-foreground p-2 rounded-full hover:bg-muted transition-colors" aria-label="Back to persona list">
+                      <BackIcon />
+                    </button>
+                    <div className="flex flex-col">
+                      <h1 
+                        className="text-2xl font-bold text-foreground cursor-pointer hover:text-indigo-400 transition-colors"
+                        onClick={() => editingPersona && handleStartChat(editingPersona.id)}
+                      >
+                        {activePersonaForHeader?.name || 'Editor'}
+                      </h1>
+                      <p className="text-sm text-muted-foreground">名前をタップするとメインチャットを開始できます</p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex-shrink-0">
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Toggle theme"
+              >
+                {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -399,7 +404,7 @@ const App: React.FC = () => {
       }
       {!isHelpChatOpen && (
         <div className={`fixed right-6 z-60 ${activeView === 'editor' || activeView === 'create' ? 'bottom-24 md:bottom-6' : 'bottom-6'}`}>
-          <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-indigo-600 hover:bg-indigo-700 transition-colors rounded-full shadow-lg flex items-center justify-center">
+          <button onClick={() => setIsHelpChatOpen(true)} className="p-3 bg-accent hover:bg-accent/90 transition-colors rounded-full shadow-lg flex items-center justify-center">
             <ChatBubbleIcon />
           </button>
         </div>
