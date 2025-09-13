@@ -645,7 +645,7 @@ ${rawText}
     return await generateWithSchema<{ title: string; body: string }>(prompt, issueSchema);
 }
 
-async function generateWBSFromIssues(issues: any[]): Promise<any> {
+export async function generateWBSFromIssues(issues: any[]): Promise<any> {
     const prompt = `以下のissueリストを分析し、機能単位で階層的なWBS（Work Breakdown Structure）を構築してください。
 
 - 各issueは、最も適切だと思われる機能カテゴリに分類してください。
