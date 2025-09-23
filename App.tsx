@@ -32,20 +32,7 @@ const App: React.FC = () => {
     }
   ];
 
-  const [personas, setPersonas] = useState<Persona[]>(() => {
-    try {
-      const storedPersonas = localStorage.getItem('interactivePersonas');
-      const loadedPersonas = storedPersonas ? JSON.parse(storedPersonas) : initialDefaultPersonas;
-      const defaultPersona = initialDefaultPersonas[0];
-      const hasStoredDefault = loadedPersonas.some((p: Persona) => p.id === defaultPersona.id);
-      if (!hasStoredDefault) return [defaultPersona, ...loadedPersonas];
-      const uniquePersonas = loadedPersonas.filter((p: Persona, index: number, self: Persona[]) => index === self.findIndex((t) => t.id === p.id));
-      return uniquePersonas;
-    } catch (error) {
-      console.error("Failed to load personas from localStorage:", error);
-      return initialDefaultPersonas;
-    }
-  });
+  const [personas, setPersonas] = useState<Persona[]>([]);
 
   const [customVoices, setCustomVoices] = useState<Voice[]>(() => {
     try {
@@ -69,14 +56,64 @@ const App: React.FC = () => {
   const [selectedHelpPersonaId, setSelectedHelpPersonaId] = useState<string | null>(null);
   const [helpChatHistory, setHelpChatHistory] = useState<ChatMessage[]>([]);
   const [isHelpChatLoading, setIsHelpChatLoading] = useState(false);
+  const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
 
+  // Fetch initial personas from the server
   useEffect(() => {
-    try {
-      localStorage.setItem('interactivePersonas', JSON.stringify(personas));
-    } catch (error) {
-      console.error("Failed to save personas to localStorage:", error);
+    const fetchPersonas = async () => {
+      try {
+        const response = await fetch('/api/personas');
+        if (response.ok) {
+          const data: Persona[] = await response.json();
+          if (data && data.length > 0) {
+            setPersonas(data);
+          } else {
+            // If no personas on server, start with the default one
+            setPersonas(initialDefaultPersonas);
+          }
+        } else {
+          // If API fails, fallback to default
+          setPersonas(initialDefaultPersonas);
+        }
+      } catch (error) {
+        console.error("Failed to fetch personas from API:", error);
+        setPersonas(initialDefaultPersonas); // Fallback on error
+      } finally {
+        setIsInitialLoadDone(true); // Mark initial load as complete
+      }
+    };
+    fetchPersonas();
+  }, []); // Empty dependency array ensures this runs only once on mount
+
+  // Save personas to the server whenever they change
+  useEffect(() => {
+    if (!isInitialLoadDone) {
+      return; // Don't save during initial load
     }
-  }, [personas]);
+
+    const savePersonas = async () => {
+      try {
+        await fetch('/api/personas', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(personas),
+        });
+      } catch (error) {
+        console.error("Failed to save personas to API:", error);
+      }
+    };
+
+    // Debounce the save operation to avoid too many API calls
+    const timerId = setTimeout(() => {
+      savePersonas();
+    }, 1000); // Save 1 second after the last change
+
+    return () => {
+      clearTimeout(timerId); // Cleanup the timer
+    };
+  }, [personas, isInitialLoadDone]);
 
   useEffect(() => {
     try {

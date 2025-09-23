@@ -16,6 +16,7 @@ import configHandler from './config.js';
 import geminiHandler from './gemini.js';
 import ttsHandler from './tts.js';
 import { getIssuesHandler, createIssueHandler, getWbsHandler} from './issues.js'; // Import issue handlers
+import { getPersonasHandler, savePersonasHandler } from './personas.js'; // Import persona handlers
 
 const app = express();
 const port = 3001;
@@ -35,6 +36,10 @@ app.post('/api/tts', (req, res) => ttsHandler(req, res));
 app.get('/api/issues', (req, res) => getIssuesHandler(req, res));
 app.post('/api/issues', (req, res) => createIssueHandler(req, res));
 app.get('/api/wbs', (req, res) => getWbsHandler(req, res));
+
+// Register Persona API routes
+app.get('/api/personas', (req, res) => getPersonasHandler(req, res));
+app.post('/api/personas', (req, res) => savePersonasHandler(req, res));
 
 // Start the server
 app.listen(port, () => {
