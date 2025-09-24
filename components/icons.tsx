@@ -153,3 +153,36 @@ export const ChevronRightIcon: React.FC<{ className?: string }> = ({ className =
     <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
   </svg>
 );
+
+export const CalendarIcon: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+  </svg>
+);
+
+export const CalendarEditIcon: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+    {/* Calendar box */}
+    <rect x="3" y="4" width="14" height="16" rx="2" ry="2" fill="currentColor" opacity="0.06" />
+    <rect x="3" y="4" width="14" height="4" rx="1" ry="1" fill="currentColor" />
+    {/* rings */}
+    <line x1="7" y1="2" x2="7" y2="6" stroke="currentColor" />
+    <line x1="13" y1="2" x2="13" y2="6" stroke="currentColor" />
+    {/* grid lines */}
+    <line x1="6" y1="11" x2="15" y2="11" stroke="currentColor" opacity="0.6" />
+    <line x1="6" y1="14" x2="15" y2="14" stroke="currentColor" opacity="0.6" />
+    <line x1="9" y1="8" x2="9" y2="18" stroke="currentColor" opacity="0.6" />
+
+    {/* Pencil (diagonal, bottom-right) */}
+    <g transform="translate(17,17) rotate(-45)">
+      {/* pencil body */}
+      <rect x="-6" y="-1.8" width="8.5" height="3.6" rx="0.6" ry="0.6" fill="currentColor" />
+      {/* eraser */}
+      <rect x="2.8" y="-1.8" width="1.6" height="3.6" rx="0.3" ry="0.3" fill="currentColor" opacity="0.9" />
+      {/* tip */}
+      <path d="M-6 1.8 L-8.4 0 L-6 -1.8 Z" fill="currentColor" />
+      {/* writing line */}
+      <path d="M-9 -2.8 L-2 -2.8" stroke="currentColor" strokeWidth={1.2} strokeLinecap="round" />
+    </g>
+  </svg>
+);

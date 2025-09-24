@@ -3,7 +3,8 @@ import { Persona, PersonaState, PersonaHistoryEntry, Voice, ChatMessage } from '
 import { PersonaEditorScreen, CreatePersonaScreen } from './components/PersonaEditorModal';
 import { PersonaList } from './components/PersonaList';
 import { ProductionChat } from './components/ProductionChat';
-import { BackIcon, ChatBubbleIcon, SunIcon, MoonIcon } from './components/icons';
+import { ScheduleChat } from './components/ScheduleChat';
+import { BackIcon, ChatBubbleIcon, SunIcon, MoonIcon, CalendarIcon, CalendarEditIcon } from './components/icons'; // Import both icons
 import * as geminiService from './services/geminiService';
 import { VoiceManagerModal } from './components/VoiceManagerModal';
 import { Loader } from './components/Loader';
@@ -46,8 +47,9 @@ const App: React.FC = () => {
 
   const [defaultVoice, setDefaultVoice] = useState<Voice | null>(null);
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
-  const [activeView, setActiveView] = useState<'list' | 'editor' | 'chat' | 'create'>('list');
-  
+  const [activeView, setActiveView] = useState<'list' | 'editor' | 'chat' | 'create' | 'schedule'>('list');
+  const [initialSelectedAgentId, setInitialSelectedAgentId] = useState<string | null>(null);
+
   const [isVoiceManagerOpen, setIsVoiceManagerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
@@ -68,51 +70,37 @@ const App: React.FC = () => {
           if (data && data.length > 0) {
             setPersonas(data);
           } else {
-            // If no personas on server, start with the default one
             setPersonas(initialDefaultPersonas);
           }
         } else {
-          // If API fails, fallback to default
           setPersonas(initialDefaultPersonas);
         }
       } catch (error) {
         console.error("Failed to fetch personas from API:", error);
-        setPersonas(initialDefaultPersonas); // Fallback on error
+        setPersonas(initialDefaultPersonas);
       } finally {
-        setIsInitialLoadDone(true); // Mark initial load as complete
+        setIsInitialLoadDone(true);
       }
     };
     fetchPersonas();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   // Save personas to the server whenever they change
   useEffect(() => {
-    if (!isInitialLoadDone) {
-      return; // Don't save during initial load
-    }
-
+    if (!isInitialLoadDone) return;
     const savePersonas = async () => {
       try {
         await fetch('/api/personas', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(personas),
         });
       } catch (error) {
         console.error("Failed to save personas to API:", error);
       }
     };
-
-    // Debounce the save operation to avoid too many API calls
-    const timerId = setTimeout(() => {
-      savePersonas();
-    }, 1000); // Save 1 second after the last change
-
-    return () => {
-      clearTimeout(timerId); // Cleanup the timer
-    };
+    const timerId = setTimeout(() => savePersonas(), 1000);
+    return () => clearTimeout(timerId);
   }, [personas, isInitialLoadDone]);
 
   useEffect(() => {
@@ -215,6 +203,15 @@ const App: React.FC = () => {
     setEditingPersona(null);
   }, []);
 
+  const handleOpenScheduleChat = useCallback((fromPersonaId?: string) => {
+    setInitialSelectedAgentId(fromPersonaId || null);
+    setActiveView('schedule');
+  }, []);
+
+  const handleOpenGoogleCalendar = useCallback(() => {
+    window.open('https://calendar.google.com', '_blank');
+  }, []);
+
   const handleOpenVoiceManager = useCallback(() => setIsVoiceManagerOpen(true), []);
   const handleCloseVoiceManager = useCallback(() => setIsVoiceManagerOpen(false), []);
   const handleSaveVoices = useCallback((voices: Voice[]) => {
@@ -314,7 +311,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       {isLoading && <Loader message={loadingMessage} />}
-      <div className={`container mx-auto px-4 pb-8 ${activeView === 'editor' ? 'pt-0' : 'pt-8'} ${activeView === 'chat' ? 'flex flex-col h-screen max-h-screen' : ''}`}>
+      <div className={`container mx-auto px-4 pb-8 ${activeView === 'editor' ? 'pt-0' : 'pt-8'} ${activeView === 'chat' || activeView === 'schedule' ? 'flex flex-col h-screen max-h-screen' : ''}`}>
         <header className="flex-shrink-0 sticky top-0 z-20 bg-background/95 backdrop-blur-sm">
           <div className="flex justify-between items-center mb-6">
             <div className="flex-grow">
@@ -358,9 +355,25 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              ) : activeView === 'schedule' ? (
+                <div /> // Empty div to keep the space consistent
               ) : null}
             </div>
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <button
+                onClick={() => handleOpenScheduleChat(editingPersona?.id)}
+                className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Open schedule chat"
+              >
+                <CalendarEditIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={handleOpenGoogleCalendar}
+                className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Open Google Calendar"
+              >
+                <CalendarIcon className="h-5 w-5" />
+              </button>
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -372,7 +385,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <main className={`${activeView === 'chat' ? 'flex-grow overflow-hidden' : ''}`}>
+        <main className={`${activeView === 'chat' || activeView === 'schedule' ? 'flex-grow overflow-hidden' : ''}`}>
           {activeView === 'list' && (
             <PersonaList
               personas={personas}
@@ -402,6 +415,13 @@ const App: React.FC = () => {
             <ProductionChat
               persona={editingPersona}
               voices={allVoices}
+            />
+          )}
+          {activeView === 'schedule' && (
+            <ScheduleChat 
+              onBack={handleBackToList} 
+              personas={personas} 
+              initialAgentId={initialSelectedAgentId} 
             />
           )}
         </main>

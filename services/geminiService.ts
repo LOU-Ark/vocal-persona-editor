@@ -6,6 +6,13 @@ interface WBSNode {
   subCategories?: WBSNode[];
 }
 
+// Define the response type for a single message from a multi-agent chat
+export interface MultiAgentChatMessage {
+  agentId: string;
+  agentName: string;
+  text: string;
+}
+
 // Check if the code is running in a browser environment
 const isBrowser = typeof window !== 'undefined';
 
@@ -86,6 +93,28 @@ export const translateNameToRomaji = (name: string): Promise<string> => {
 
 export const getPersonaChatResponse = (personaState: PersonaState, history: ChatMessage[]): Promise<string> => {
   return callApi('getPersonaChatResponse', { personaState, history });
+};
+
+export const getMultiAgentChatResponse = async (
+  history: ChatMessage[],
+  agents: Persona[]
+): Promise<MultiAgentChatMessage[]> => {
+  const responsePromises = agents.map(agent => 
+    getPersonaChatResponse(agent, history)
+      .then(responseText => ({
+        agentId: agent.id,
+        agentName: agent.name,
+        text: responseText,
+      }))
+      .catch(error => ({
+        agentId: agent.id,
+        agentName: agent.name,
+        text: `Error: ${error.message}`,
+      }))
+  );
+
+  const responses = await Promise.all(responsePromises);
+  return responses;
 };
 
 // ヘルプチャット用の新しい関数
