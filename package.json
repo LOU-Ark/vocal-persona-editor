@@ -14,6 +14,7 @@
     "@genkit-ai/core": "^1.19.3",
     "@genkit-ai/dotprompt": "^0.9.12",
     "@genkit-ai/firebase": "^1.19.3",
+    "@genkit-ai/flow": "^0.5.17",
     "@genkit-ai/googleai": "^1.19.3",
     "@google/genai": "^1.16.0",
     "@vercel/blob": "^1.1.1",
